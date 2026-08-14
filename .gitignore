@@ -1,0 +1,25 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# SQLite
+*.db
+api/data/
+
+# Node / Mini App
+node_modules/
+dist/
+*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/

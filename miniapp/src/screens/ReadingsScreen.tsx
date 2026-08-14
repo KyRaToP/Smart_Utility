@@ -1,0 +1,137 @@
+import { useMemo, useState } from "react";
+import {
+  apartmentServices,
+  lastReadingBefore,
+  readingForMonth,
+} from "../calc/month";
+import { computeConsumption } from "../calc/calculate";
+import { Button } from "../components/Button";
+import { Card } from "../components/Card";
+import { EmptyState } from "../components/EmptyState";
+import { GaugeIcon } from "../components/Icons";
+import { formatMonthTitle, formatNumber } from "../lib/format";
+import { useApp } from "../state/AppContext";
+
+export function ReadingsScreen() {
+  const { data, currentMonth, saveReadings, push } = useApp();
+  const apartment = data.apartments.find((item) => item.id === data.activeApartmentId);
+  const services = apartment
+    ? apartmentServices(data, apartment.id).filter((item) => item.hasMeter)
+    : [];
+  const meters = data.meters.filter((meter) =>
+    services.some((service) => service.id === meter.serviceId),
+  );
+
+  const initialValues = useMemo(() => {
+    const values: Record<string, string> = {};
+    for (const meter of meters) {
+      const current = readingForMonth(data, meter.id, currentMonth);
+      values[meter.id] = current === null ? "" : String(current);
+    }
+    return values;
+  }, [meters, data, currentMonth]);
+
+  const [values, setValues] = useState<Record<string, string>>(initialValues);
+
+  if (!apartment) {
+    return null;
+  }
+
+  if (meters.length === 0) {
+    return (
+      <div className="screen-enter">
+        <h1 className="h1">Показания</h1>
+        <EmptyState
+          icon={<GaugeIcon />}
+          title="Нет счётчиков"
+          text="Добавьте услугу со счётчиком — холодную воду, электричество или газ."
+          actionLabel="Добавить услугу"
+          onAction={() => push({ name: "add-service" })}
+        />
+      </div>
+    );
+  }
+
+  const numericValues: Record<string, number> = {};
+  let canCalculate = true;
+  for (const meter of meters) {
+    const parsed = Number(values[meter.id]?.replace(",", "."));
+    if (!Number.isFinite(parsed) || values[meter.id]?.trim() === "") {
+      canCalculate = false;
+    } else {
+      numericValues[meter.id] = parsed;
+    }
+  }
+
+  return (
+    <div className="stack screen-enter">
+      <div>
+        <h1 className="h1">Показания</h1>
+        <p className="small">
+          {apartment.name} · передайте до {apartment.readingDueDay}{" "}
+          {formatMonthTitle(currentMonth).split(" ")[0].toLowerCase()}
+        </p>
+      </div>
+
+      {meters.map((meter) => {
+        const service = services.find((item) => item.id === meter.serviceId);
+        if (!service) {
+          return null;
+        }
+        const previous = lastReadingBefore(data, meter.id, currentMonth);
+        const currentValue = Number(values[meter.id]?.replace(",", "."));
+        const hasCurrent = values[meter.id]?.trim() !== "" && Number.isFinite(currentValue);
+        const consumption =
+          previous !== null && hasCurrent
+            ? computeConsumption(currentValue, previous)
+            : null;
+
+        return (
+          <Card key={meter.id}>
+            <p className="h3">{meter.zone === "single" ? service.name : `${service.name} · ${meter.name}`}</p>
+            <p className="small" style={{ marginTop: 4 }}>
+              {previous === null
+                ? "Первый раз: введите начальное показание"
+                : `Предыдущие: ${formatNumber(previous, 2)} ${service.unit}`}
+            </p>
+            <div className="reading-input" style={{ marginTop: 12 }}>
+              <label className="field" style={{ flex: 1 }}>
+                Текущие
+                <input
+                  inputMode="decimal"
+                  value={values[meter.id] ?? ""}
+                  placeholder={previous === null ? "Начальное значение" : ""}
+                  onChange={(event) =>
+                    setValues((current) => ({
+                      ...current,
+                      [meter.id]: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <span className="small">{service.unit}</span>
+            </div>
+            {consumption !== null ? (
+              <p className="small" style={{ marginTop: 10 }}>
+                Расход: {formatNumber(consumption, 2)} {service.unit}
+                {consumption < 0
+                  ? " — значение меньше предыдущего. Проверьте или отметьте замену счётчика позже."
+                  : ""}
+              </p>
+            ) : null}
+          </Card>
+        );
+      })}
+
+      <Button
+        disabled={!canCalculate}
+        onClick={async () => {
+          await saveReadings(numericValues, currentMonth);
+          push({ name: "calculation" });
+        }}
+      >
+        Перейти к расчёту
+      </Button>
+    </div>
+  );
+}

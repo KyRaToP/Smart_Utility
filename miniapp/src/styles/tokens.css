@@ -1,0 +1,71 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --primary: #5b5ce2;
+  --primary-dark: #4647c7;
+  --primary-soft: #eef0fb;
+  --text: #181a20;
+  --text-secondary: #747783;
+  --border: #e8e9ee;
+  --success: #35b779;
+  --success-soft: #eaf7f1;
+  --warning: #f4b740;
+  --warning-soft: #fdf6e4;
+  --danger: #ef6262;
+  --danger-soft: #fdeeee;
+  --info: #4e9fe6;
+  --info-soft: #eaf3fb;
+
+  --radius-sm: 16px;
+  --radius-md: 20px;
+  --radius-lg: 24px;
+
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+
+  --nav-height: 76px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --font: "Inter", sans-serif;
+  --shadow-hero: 0 10px 30px rgba(24, 26, 32, 0.04);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}
