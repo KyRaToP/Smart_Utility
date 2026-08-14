@@ -1,18 +1,23 @@
+"""
+SMART UTILITY Telegram bot.
+
+Opens Mini App, answers /start, sends daily reminders from SQLite settings.
+"""
+
+from __future__ import annotations
+
 import asyncio
 import logging
-import os
-from pathlib import Path
+from datetime import date
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command, CommandStart
-from aiogram.types import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    MenuButtonWebApp,
-    Message,
-    WebAppInfo,
-)
-from dotenv import load_dotenv
+from aiogram.types import Message
+
+from app.config import BOT_TOKEN, DATABASE_PATH, WEBAPP_URL, is_allowed
+from app.db_reader import list_users
+from app.reminders import build_user_reminders
+from app.scheduler import app_keyboard, send_reminder, start_scheduler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,49 +25,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(PROJECT_ROOT / ".env")
-
-BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 if not BOT_TOKEN:
     raise ValueError(
         "BOT_TOKEN пуст. Откройте .env в корне проекта и вставьте токен от BotFather."
     )
 
-WEBAPP_URL = os.getenv("WEBAPP_URL", "").strip()
-ALLOWED_IDS = {
-    int(item.strip())
-    for item in os.environ.get("ALLOWED_TELEGRAM_IDS", "").split(",")
-    if item.strip().isdigit()
-}
-
-if not ALLOWED_IDS:
-    logger.warning(
-        "ALLOWED_TELEGRAM_IDS пуст: бот отвечает всем. Перед передачей пользователю задайте allowlist."
-    )
-
 router = Router()
-
-
-def is_allowed(user_id: int) -> bool:
-    if not ALLOWED_IDS:
-        return True
-    return user_id in ALLOWED_IDS
-
-
-def app_keyboard() -> InlineKeyboardMarkup | None:
-    if not WEBAPP_URL:
-        return None
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="Открыть приложение",
-                    web_app=WebAppInfo(url=WEBAPP_URL),
-                )
-            ]
-        ]
-    )
 
 
 @router.message(CommandStart())
@@ -87,7 +55,9 @@ async def start(message: Message) -> None:
         "2. Назовите три квартиры\n"
         "3. Добавьте услуги и тарифы из квитанции\n"
         "4. Каждый месяц введите текущие показания\n"
-        "5. Сохраните расчёт и отметьте оплату"
+        "5. Сохраните расчёт и отметьте оплату\n\n"
+        "Бот напомнит о показаниях, оплате и пришлёт ежемесячный отчёт "
+        "(настройки — в Mini App → Настройки → Уведомления)."
     )
 
     keyboard = app_keyboard()
@@ -105,14 +75,56 @@ async def help_command(message: Message) -> None:
     await start(message)
 
 
-async def setup_menu(bot: Bot) -> None:
-    if WEBAPP_URL:
-        await bot.set_chat_menu_button(
-            menu_button=MenuButtonWebApp(
-                text="Приложение",
-                web_app=WebAppInfo(url=WEBAPP_URL),
-            )
+@router.message(Command("remind_test"))
+async def remind_test(message: Message) -> None:
+    """Send today's reminders for the current user (local testing)."""
+    user = message.from_user
+    if user is None:
+        return
+    if not is_allowed(user.id):
+        await message.answer("Нет доступа.")
+        return
+
+    profile = next(
+        (item for item in list_users(DATABASE_PATH) if item.telegram_id == user.id),
+        None,
+    )
+    if profile is None:
+        # list_users only onboarded — try build with empty
+        await message.answer(
+            "В базе ещё нет onboarded-профиля с вашим telegram_id.\n"
+            "Откройте Mini App в режиме «как у пользователя», пройдите "
+            "onboarding (API должен быть запущен), затем повторите /remind_test."
         )
+        return
+
+    reminders = build_user_reminders(profile, date.today())
+    if not reminders:
+        await message.answer(
+            "На сегодня по вашим настройкам напоминаний нет.\n"
+            "Проверьте день показаний квартиры и «за N дней» в Уведомлениях, "
+            "либо смените дату на ПК для теста логики."
+        )
+        return
+
+    bot = message.bot
+    for reminder in reminders:
+        await send_reminder(bot, reminder)
+    await message.answer(f"Отправлено напоминаний: {len(reminders)}")
+
+
+async def setup_menu(bot: Bot) -> None:
+    if not WEBAPP_URL:
+        logger.warning("WEBAPP_URL is empty — Menu Button Web App is not set")
+        return
+    from aiogram.types import MenuButtonWebApp, WebAppInfo
+
+    await bot.set_chat_menu_button(
+        menu_button=MenuButtonWebApp(
+            text="Приложение",
+            web_app=WebAppInfo(url=WEBAPP_URL),
+        )
+    )
 
 
 async def main() -> None:
@@ -120,6 +132,7 @@ async def main() -> None:
     dispatcher = Dispatcher()
     dispatcher.include_router(router)
     await setup_menu(bot)
+    start_scheduler(bot)
     logger.info("Bot started")
     try:
         await dispatcher.start_polling(bot)

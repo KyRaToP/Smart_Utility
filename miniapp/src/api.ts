@@ -1,5 +1,12 @@
 import type { AppData, NotificationSettings } from "./types";
 
+/** Base URL for API. Empty = same origin (local Vite proxy). */
+const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+
+function apiUrl(path: string): string {
+  return `${API_BASE}${path}`;
+}
+
 async function request(path: string, init?: RequestInit): Promise<AppData> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -13,7 +20,7 @@ async function request(path: string, init?: RequestInit): Promise<AppData> {
     headers["X-Dev-Telegram-Id"] = "1001";
   }
 
-  const response = await fetch(path, { ...init, headers });
+  const response = await fetch(apiUrl(path), { ...init, headers });
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(detail || `API error ${response.status}`);
@@ -23,7 +30,7 @@ async function request(path: string, init?: RequestInit): Promise<AppData> {
 
 export const api = {
   health: async () => {
-    const response = await fetch("/api/health");
+    const response = await fetch(apiUrl("/api/health"));
     if (!response.ok) {
       throw new Error("API is not running");
     }

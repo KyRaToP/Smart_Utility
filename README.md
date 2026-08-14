@@ -4,21 +4,16 @@ Telegram Bot + Mini App для ежемесячного учёта коммун�
 
 Реализует разработчик. Пользуется другой человек в своём Telegram. В коде нет его адресов и тарифов.
 
-## Сейчас готово
+## Готово локально
 
-UI prototype Mini App по `design_spec.md`:
+- Mini App (React + Vite) по `design_spec.md`
+- FastAPI + SQLite + calculation layer
+- Telegram-бот: `/start`, `/help`, Menu Button, **ежедневные напоминания**
+- Напоминания читают настройки из той же SQLite, что и API
 
-- Design System (цвета, Inter, кнопки, карточки, Bottom Navigation);
-- onboarding трёх квартир;
-- экраны: Главная, Показания, Расчёт, Статистика, История, детали месяца, Настройки, услуга, уведомления, профиль;
-- calculation layer в `miniapp/src/calc/` — формулы не спрятаны в UI;
-- два режима данных: `mock` (проверка вёрстки) и `empty` (как у пользователя).
-
-Backend (FastAPI + SQLite) уже есть. Режим **как у пользователя** ходит в API. Demo-данные по-прежнему только в браузере, для вёрстки.
+Осталось с вашей стороны позже: HTTPS-деплой Mini App + API и привязка в BotFather.
 
 ## Mini App
-
-Нужен Node.js 18+. Если `npm` не в PATH, укажите папку установки Node.
 
 ```powershell
 cd c:\projects\utility-bot\miniapp
@@ -26,58 +21,45 @@ npm install
 npm run dev
 ```
 
-Откройте http://localhost:5173
+Откройте http://localhost:5173 (или порт, который покажет Vite).
 
-В режиме разработки сверху есть переключатель:
+Переключатель в DEV:
 
-- **demo-данные** — три демо-квартиры, чтобы проверить дизайн;
-- **как у пользователя** — пустой onboarding без чужих цифр.
-
-Production-сборка всегда стартует в empty-режиме.
+- **demo-данные** — вёрстка
+- **как у пользователя** — onboarding и данные через API
 
 ```powershell
 npm run lint
 npm run build
 ```
 
-Чтобы открыть Mini App внутри Telegram, нужен HTTPS URL (например ngrok на порт 5173) и этот URL в BotFather / `WEBAPP_URL`. Секреты для этого шага ещё можно не заполнять, пока смотрите браузер.
-
 ## API
-
-Локально API работает **без секретов** (DEV_AUTH): браузер ходит как тестовый пользователь `1001`.
 
 ```powershell
 cd c:\projects\utility-bot\api
 python -m venv venv
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
 .\venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Проверка:
-
-```powershell
-cd c:\projects\utility-bot\api
 .\venv\Scripts\python.exe -m pytest test_app.py
 ```
 
-Mini App (`npm run dev`) проксирует `/api` на порт 8000. Для режима «как у пользователя» должны быть запущены **оба** сервера.
+Пока `BOT_TOKEN` пуст, API в DEV_AUTH принимает заголовок `X-Dev-Telegram-Id`.
 
-SQLite-файл: `api/data/smart_utility.db` (в git не попадает).
+База: `api/data/smart_utility.db` (не в git).
 
-## Bot
+## Bot и напоминания
 
-1. Создайте бота в `@BotFather`.
-2. В корне проекта уже есть `.env`. Вставьте туда значения сами:
+В `.env` (корне проекта, файл не коммитится):
 
 ```text
-BOT_TOKEN=токен_от_BotFather
-WEBAPP_URL=https://your-https-url
-ALLOWED_TELEGRAM_IDS=telegram_id_пользователя
+BOT_TOKEN=
+WEBAPP_URL=
+ALLOWED_TELEGRAM_IDS=
+DEV_AUTH=1
+BOT_TIMEZONE=Europe/Moscow
+REMINDER_HOUR=9
+REMINDER_MINUTE=0
 ```
-
-`ALLOWED_TELEGRAM_IDS` — allowlist. ID того человека, который будет пользоваться ботом. Свой ID можно добавить только для теста.
-
-`.env` в git не попадает: он указан в `.gitignore`.
 
 ```powershell
 cd c:\projects\utility-bot\bot
@@ -86,14 +68,48 @@ python -m venv venv
 .\venv\Scripts\python.exe bot.py
 ```
 
+Каждый день в 09:00 (Europe/Moscow) бот смотрит настройки пользователя:
+
+| Тип | Когда |
+|---|---|
+| Показания | за N дней до `reading_due_day` каждой квартиры |
+| Оплата | за N дней до того же срока; пропускает уже оплаченные |
+| Отчёт | в `report_day` — сводка по 3 квартирам за прошлый месяц |
+
+Настройки: Mini App → Настройки → Уведомления.
+
+Локальный тест без ожидания 09:00:
+
+```text
+/remind_test
+```
+
+Нужны: запущенный API, onboarding в режиме «как у пользователя» под вашим `telegram_id` (в Telegram) **или** для браузера DEV id `1001` — тогда `/remind_test` сработает только если ваш реальный Telegram ID совпал с записью в БД. Для проверки логики напоминаний удобнее заполнить `BOT_TOKEN`, пройти onboarding из Mini App внутри Telegram позже; до деплоя можно править день показаний квартиры на «сегодня + N».
+
+Проверка логики без Telegram:
+
+```powershell
+cd c:\projects\utility-bot\bot
+.\venv\Scripts\python.exe -m pytest test_reminders.py
+```
+
+## Handoff (когда будете передавать человеку)
+
+1. Задеплоить Mini App (Vercel) и API (Render) на HTTPS.
+2. В `.env` / хостинге: `WEBAPP_URL`, `BOT_TOKEN`, `ALLOWED_TELEGRAM_IDS=<его_id>`.
+3. BotFather → Menu Button = `WEBAPP_URL`.
+4. Запустить бота (ПК или сервер).
+5. Он: `/start` → назвать 3 квартиры → услуги → показания.
+6. Не заходите в его данные и не коммитьте `.env`.
+
 ## Секреты и git
 
-- `.env` — только на вашей машине, в коммиты не кладём
-- `.gitignore` игнорирует `.env`, `node_modules`, `dist`, `venv`
-- перед каждым коммитом проверяем `git status`: `.env` не должен быть в staged files
+- `.env` никогда не в коммитах
+- есть `.env.example` без секретов
+- перед коммитом: `git status` — `.env` не должен быть staged
 
-## Что дальше
+## Что осталось
 
-1. Прогон первого запуска внутри Telegram — нужны секреты: `BOT_TOKEN`, `WEBAPP_URL`, `ALLOWED_TELEGRAM_IDS`.
-2. Напоминания бота: показания, оплата, отчёт по трём квартирам.
-3. Передача человеку: ссылка `t.me/bot`, его ID в allowlist.
+1. HTTPS-деплой Mini App + API  
+2. Привязка в Telegram (BotFather + `WEBAPP_URL`)  
+3. Прогон на телефоне у конечного пользователя  
