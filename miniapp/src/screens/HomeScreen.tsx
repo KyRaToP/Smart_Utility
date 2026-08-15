@@ -110,15 +110,15 @@ export function HomeScreen() {
         {servicesCount === 0 ? (
           <Card size="hero">
             <EmptyState
-              title="Пока нечего считать"
-              text="Добавьте услуги и тарифы этой квартиры. Цифры вводите свои — шаблонных тарифов нет."
+              title="С чего начать"
+              text="1) Добавьте услуги и тарифы с квитанции. 2) Если месяц уже оплачен — внесите конечные показания как базу (Настройки → Уже оплаченный месяц)."
               actionLabel="Добавить услугу"
               onAction={() => push({ name: "add-service" })}
             />
           </Card>
         ) : (
           <Card size="hero">
-            <p className="caption">К оплате</p>
+            <p className="caption">К оплате (расчёт в приложении)</p>
             <CountUpAmount value={total} />
             {change !== null ? (
               <p className="small" style={{ marginTop: 8 }}>
@@ -129,12 +129,15 @@ export function HomeScreen() {
                 Сравним с прошлым месяцем, когда появится история
               </p>
             )}
+            <p className="small" style={{ marginTop: 8 }}>
+              Оплата — в банке или у поставщика. Здесь только отметка в учёте.
+            </p>
             <div style={{ marginTop: 20 }}>
               <Button
                 disabled={total <= 0 || payment?.status === "paid"}
                 onClick={() => markPaid(apartment.id, currentMonth)}
               >
-                {payment?.status === "paid" ? "Оплачено" : "Оплатить"}
+                {payment?.status === "paid" ? "Оплачено" : "Отметить оплаченным"}
               </Button>
             </div>
           </Card>

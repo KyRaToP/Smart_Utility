@@ -33,6 +33,37 @@ if not BOT_TOKEN:
 router = Router()
 
 
+def start_text() -> str:
+    return (
+        "Smart_Utility — учёт коммуналки по трём квартирам.\n\n"
+        "Данные только ваши: названия, тарифы и показания вы вводите сами. "
+        "Разработчик их не заполняет.\n\n"
+        "С чего начать:\n"
+        "1. Откройте приложение (кнопка ниже или меню)\n"
+        "2. Назовите три квартиры\n"
+        "3. Добавьте услуги и тарифы с квитанции\n"
+        "4. Если месяц уже оплачен — внесите конечные показания как базу\n"
+        "5. Дальше каждый месяц: новые показания → расчёт → отметьте оплату\n\n"
+        "Важно: через приложение деньги не списываются. "
+        "Кнопка «Отметить оплаченным» — только запись в учёте после оплаты снаружи.\n\n"
+        "Бот напомнит о сроках (Настройки → Уведомления)."
+    )
+
+
+def help_text() -> str:
+    return (
+        "Краткая справка Smart_Utility\n\n"
+        "• Три квартиры — отдельные услуги, показания и суммы.\n"
+        "• Показания: расход = текущие − предыдущие.\n"
+        "• Первый запуск: можно сохранить уже оплаченный месяц как базу "
+        "(Настройки → Уже оплаченный месяц).\n"
+        "• Расчёт показывает формулы; сохраните месяц, затем отметьте оплату.\n"
+        "• Оплата картой / СБП в приложении нет — только статус «оплачено».\n"
+        "• Напоминания: /remind_test — проверить сегодняшние (для разработчика).\n\n"
+        "Команды: /start — приветствие, /help — эта справка."
+    )
+
+
 @router.message(CommandStart())
 async def start(message: Message) -> None:
     user = message.from_user
@@ -42,28 +73,17 @@ async def start(message: Message) -> None:
     if not is_allowed(user.id):
         await message.answer(
             "Этот бот приватный. Если вы владелец квартир, попросите "
-            "разработчика добавить ваш Telegram ID в allowlist."
+            "разработчика добавить ваш Telegram ID в список доступа."
         )
         return
 
-    text = (
-        "Smart_Utility считает коммуналку по трём квартирам.\n\n"
-        "Данные принадлежат только вам: названия квартир, тарифы и "
-        "показания вы вводите сами.\n\n"
-        "Как пользоваться:\n"
-        "1. Откройте приложение\n"
-        "2. Назовите три квартиры\n"
-        "3. Добавьте услуги и тарифы из квитанции\n"
-        "4. Каждый месяц введите текущие показания\n"
-        "5. Сохраните расчёт и отметьте оплату\n\n"
-        "Бот напомнит о показаниях, оплате и пришлёт ежемесячный отчёт "
-        "(настройки — в Mini App → Настройки → Уведомления)."
-    )
-
+    text = start_text()
     keyboard = app_keyboard()
     if keyboard is None:
         await message.answer(
-            text + "\n\nСсылка на Mini App ещё не задана (WEBAPP_URL)."
+            text
+            + "\n\nПриложение ещё не подключено: нужна публичная HTTPS-ссылка "
+            "(WEBAPP_URL). Пока можно пользоваться локальной версией у разработчика."
         )
         return
 
@@ -72,7 +92,18 @@ async def start(message: Message) -> None:
 
 @router.message(Command("help"))
 async def help_command(message: Message) -> None:
-    await start(message)
+    user = message.from_user
+    if user is None:
+        return
+    if not is_allowed(user.id):
+        await message.answer("Нет доступа.")
+        return
+
+    keyboard = app_keyboard()
+    if keyboard is None:
+        await message.answer(help_text())
+        return
+    await message.answer(help_text(), reply_markup=keyboard)
 
 
 @router.message(Command("remind_test"))
