@@ -27,7 +27,9 @@ logger = logging.getLogger(__name__)
 
 if not BOT_TOKEN:
     raise ValueError(
-        "BOT_TOKEN пуст. Откройте .env в корне проекта и вставьте токен от BotFather."
+        "BOT_TOKEN пуст. Локально: заполните .env в корне проекта. "
+        "На Railway: Variables → BOT_TOKEN = токен от BotFather "
+        "(файл .env в облако не копируется)."
     )
 
 router = Router()

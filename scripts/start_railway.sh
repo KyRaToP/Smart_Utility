@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Run API + bot in one Railway web service (shared SQLite).
+# API stays up even if the bot crashes (e.g. missing BOT_TOKEN).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -10,8 +11,19 @@ cd "$ROOT/api"
 python -m uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}" &
 API_PID=$!
 
-cd "$ROOT/bot"
-python bot.py &
+run_bot() {
+  cd "$ROOT/bot"
+  while true; do
+    if python bot.py; then
+      echo "Bot exited cleanly; restarting in 5s"
+    else
+      echo "Bot failed (check BOT_TOKEN and other Railway Variables); retry in 30s"
+    fi
+    sleep 30
+  done
+}
+
+run_bot &
 BOT_PID=$!
 
 cleanup() {
@@ -19,5 +31,5 @@ cleanup() {
 }
 trap cleanup EXIT
 
-wait -n "$API_PID" "$BOT_PID"
+wait "$API_PID"
 exit $?
