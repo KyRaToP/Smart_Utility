@@ -74,67 +74,72 @@ export function HomeScreen() {
 
   return (
     <div className="stack screen-enter">
-      <div>
+      <div className="screen-top">
         <p className="small">Привет, {telegramName}</p>
         <h1 className="h2" style={{ marginTop: 2 }}>
           {apartment.name} · {formatMonthTitle(currentMonth)}
         </h1>
-      </div>
 
-      <ApartmentSwitcher
-        apartments={data.apartments}
-        activeId={apartment.id}
-        onChange={setActiveApartment}
-      />
-
-      <div className="summary-row">
-        {data.apartments.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="summary-cell"
-            onClick={() => setActiveApartment(item.id)}
-          >
-            <span className="caption">{item.name}</span>
-            <strong>{formatRub(monthTotal(data, item.id, currentMonth))}</strong>
-          </button>
-        ))}
-      </div>
-
-      <Badge tone={statusTone}>{status.label}</Badge>
-
-      {servicesCount === 0 ? (
-        <Card size="hero">
-          <EmptyState
-            title="Пока нечего считать"
-            text="Добавьте услуги и тарифы этой квартиры. Цифры вводите свои — шаблонных тарифов нет."
-            actionLabel="Добавить услугу"
-            onAction={() => push({ name: "add-service" })}
+        <div style={{ marginTop: 16 }}>
+          <ApartmentSwitcher
+            apartments={data.apartments}
+            activeId={apartment.id}
+            onChange={setActiveApartment}
+            onDark
           />
-        </Card>
-      ) : (
-        <Card size="hero">
-          <p className="caption">К оплате</p>
-          <CountUpAmount value={total} />
-          {change !== null ? (
-            <p className="small" style={{ marginTop: 8 }}>
-              {change > 0 ? "↑" : "↓"} {Math.abs(change)}% к прошлому месяцу
-            </p>
-          ) : (
-            <p className="small" style={{ marginTop: 8 }}>
-              Сравним с прошлым месяцем, когда появится история
-            </p>
-          )}
-          <div style={{ marginTop: 20 }}>
-            <Button
-              disabled={total <= 0 || payment?.status === "paid"}
-              onClick={() => markPaid(apartment.id, currentMonth)}
+        </div>
+
+        <div className="summary-row" style={{ marginTop: 14 }}>
+          {data.apartments.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="summary-cell"
+              onClick={() => setActiveApartment(item.id)}
             >
-              {payment?.status === "paid" ? "Оплачено" : "Оплатить"}
-            </Button>
-          </div>
-        </Card>
-      )}
+              <span className="caption">{item.name}</span>
+              <strong>{formatRub(monthTotal(data, item.id, currentMonth))}</strong>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="screen-top__pull stack" style={{ gap: 12 }}>
+        <Badge tone={statusTone}>{status.label}</Badge>
+
+        {servicesCount === 0 ? (
+          <Card size="hero">
+            <EmptyState
+              title="Пока нечего считать"
+              text="Добавьте услуги и тарифы этой квартиры. Цифры вводите свои — шаблонных тарифов нет."
+              actionLabel="Добавить услугу"
+              onAction={() => push({ name: "add-service" })}
+            />
+          </Card>
+        ) : (
+          <Card size="hero">
+            <p className="caption">К оплате</p>
+            <CountUpAmount value={total} />
+            {change !== null ? (
+              <p className="small" style={{ marginTop: 8 }}>
+                {change > 0 ? "↑" : "↓"} {Math.abs(change)}% к прошлому месяцу
+              </p>
+            ) : (
+              <p className="small" style={{ marginTop: 8 }}>
+                Сравним с прошлым месяцем, когда появится история
+              </p>
+            )}
+            <div style={{ marginTop: 20 }}>
+              <Button
+                disabled={total <= 0 || payment?.status === "paid"}
+                onClick={() => markPaid(apartment.id, currentMonth)}
+              >
+                {payment?.status === "paid" ? "Оплачено" : "Оплатить"}
+              </Button>
+            </div>
+          </Card>
+        )}
+      </div>
 
       {insight ? <p className="insight">{insight}</p> : null}
 

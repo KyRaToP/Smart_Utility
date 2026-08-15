@@ -35,11 +35,28 @@ export function ProfileScreen() {
     <div className="app-content screen-enter stack">
       <BackRow title="Профиль" onBack={back} />
 
-      <Card size="hero">
+      <div className="screen-top" style={{ marginTop: 0 }}>
         <p className="caption">Telegram</p>
-        <p className="h2">{telegramName}</p>
-        <p className="small" style={{ marginTop: 6 }}>
+        <p className="h2" style={{ marginTop: 6 }}>
+          {telegramName}
+        </p>
+        <p className="small" style={{ marginTop: 8 }}>
           Данные привязаны к этому аккаунту. Разработчик не заполняет ваши тарифы.
+        </p>
+      </div>
+
+      <Card size="hero" className="screen-top__pull">
+        <p className="caption">Сумма по трём квартирам</p>
+        <p className="hero-amount" style={{ marginTop: 6 }}>
+          {formatRub(
+            data.apartments.reduce(
+              (sum, apartment) => sum + monthTotal(data, apartment.id, currentMonth),
+              0,
+            ),
+          )}
+        </p>
+        <p className="small" style={{ marginTop: 8 }}>
+          {formatMonthTitle(currentMonth)} · отдельные тарифы и показания
         </p>
       </Card>
 

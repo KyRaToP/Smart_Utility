@@ -18,7 +18,7 @@ export function OnboardingScreen() {
   return (
     <div className="app-content screen-enter stack">
       <div>
-        <p className="caption">SMART UTILITY</p>
+        <p className="caption">Smart_Utility</p>
         <h1 className="h1">Три квартиры</h1>
         <p className="small" style={{ marginTop: 8 }}>
           Назовите объекты так, как вам удобно. Адреса и тарифы вы добавите сами —

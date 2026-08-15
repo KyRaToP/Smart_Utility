@@ -19,6 +19,11 @@ export interface AppContextValue {
   ) => Promise<void>;
   setActiveApartment: (id: string) => Promise<void>;
   saveReadings: (values: Record<string, number>, month?: string) => Promise<void>;
+  saveBaseline: (
+    values: Record<string, number>,
+    month: string,
+    markPaid?: boolean,
+  ) => Promise<void>;
   saveCalculation: (month?: string, values?: Record<string, number>) => Promise<void>;
   markPaid: (apartmentId: string, month: string) => Promise<void>;
   addService: (input: {

@@ -1,11 +1,11 @@
-# SMART UTILITY API
+# Smart_Utility API
 
 FastAPI + SQLite.
 
 Локально:
 
 ```powershell
-cd c:\projects\utility-bot\api
+cd c:\projects\Smart_Utility\api
 .\venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 .\venv\Scripts\python.exe -m pytest test_app.py
 ```

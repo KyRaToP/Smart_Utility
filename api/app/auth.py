@@ -6,7 +6,7 @@ import json
 import os
 from urllib.parse import parse_qsl
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Request
 
 
 class AuthError(Exception):
@@ -27,12 +27,13 @@ def bot_token() -> str:
 
 
 def dev_auth_enabled() -> bool:
-    flag = os.getenv("DEV_AUTH", "").strip().lower()
+    # Default ON for local browser testing. Set DEV_AUTH=0 for production handoff.
+    flag = os.getenv("DEV_AUTH", "1").strip().lower()
     if flag in {"1", "true", "yes"}:
         return True
     if flag in {"0", "false", "no"}:
         return False
-    return bot_token() == ""
+    return True
 
 
 def validate_init_data(init_data: str, token: str) -> dict:
@@ -58,19 +59,34 @@ def validate_init_data(init_data: str, token: str) -> dict:
     return json.loads(user_raw)
 
 
+def _is_local_client(request: Request) -> bool:
+    host = (request.client.host if request.client else "") or ""
+    return host in {"127.0.0.1", "::1", "localhost"}
+
+
 def resolve_user(
+    request: Request,
     x_telegram_init_data: str | None = Header(default=None),
     x_dev_telegram_id: str | None = Header(default=None),
 ) -> dict:
     token = bot_token()
-    if x_telegram_init_data:
+    init_data = (x_telegram_init_data or "").strip()
+
+    # Local browser / Vite proxy on phone Wi-Fi: no Telegram signature.
+    # DEV path skips allowlist; real Telegram users always send signed initData.
+    allow_dev = dev_auth_enabled() or _is_local_client(request)
+    if allow_dev and not init_data:
+        telegram_id = int(x_dev_telegram_id or os.getenv("DEV_TELEGRAM_ID", "1001"))
+        return {"telegram_id": telegram_id, "display_name": "Dev"}
+
+    if init_data:
         if not token:
             raise HTTPException(
                 status_code=503,
                 detail="BOT_TOKEN is empty, cannot verify Telegram initData",
             )
         try:
-            user = validate_init_data(x_telegram_init_data, token)
+            user = validate_init_data(init_data, token)
         except AuthError as error:
             raise HTTPException(status_code=401, detail=str(error)) from error
         telegram_id = int(user["id"])
@@ -80,14 +96,9 @@ def resolve_user(
             "display_name": user.get("first_name") or "Пользователь",
         }
 
-    if dev_auth_enabled():
-        telegram_id = int(x_dev_telegram_id or os.getenv("DEV_TELEGRAM_ID", "1001"))
-        _assert_allowlist(telegram_id)
-        return {"telegram_id": telegram_id, "display_name": "Dev"}
-
     raise HTTPException(
         status_code=401,
-        detail="Telegram initData is required",
+        detail="Telegram initData is required (or enable DEV_AUTH=1 for local browser)",
     )
 
 

@@ -13,7 +13,8 @@ export type ScreenName =
   | "notifications"
   | "profile"
   | "services"
-  | "apartment-edit";
+  | "apartment-edit"
+  | "baseline";
 
 export interface Route {
   name: ScreenName;

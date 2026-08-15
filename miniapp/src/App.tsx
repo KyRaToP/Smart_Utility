@@ -1,6 +1,7 @@
 import { BottomNav } from "./components/BottomNav";
 import { AddServiceScreen } from "./screens/AddServiceScreen";
 import { ApartmentEditScreen } from "./screens/ApartmentEditScreen";
+import { BaselineScreen } from "./screens/BaselineScreen";
 import { CalculationScreen } from "./screens/CalculationScreen";
 import { HistoryScreen } from "./screens/HistoryScreen";
 import { HomeScreen } from "./screens/HomeScreen";
@@ -81,6 +82,9 @@ function StackScreen({ name }: { name: ScreenName }) {
   }
   if (name === "apartment-edit") {
     return <ApartmentEditScreen />;
+  }
+  if (name === "baseline") {
+    return <BaselineScreen />;
   }
   return null;
 }

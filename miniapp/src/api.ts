@@ -7,6 +7,10 @@ function apiUrl(path: string): string {
   return `${API_BASE}${path}`;
 }
 
+function hasSignedInitData(initData: string | undefined): boolean {
+  return Boolean(initData && initData.includes("hash="));
+}
+
 async function request(path: string, init?: RequestInit): Promise<AppData> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -14,9 +18,10 @@ async function request(path: string, init?: RequestInit): Promise<AppData> {
   };
 
   const initData = window.Telegram?.WebApp.initData;
-  if (initData) {
-    headers["X-Telegram-Init-Data"] = initData;
+  if (hasSignedInitData(initData)) {
+    headers["X-Telegram-Init-Data"] = initData!;
   } else if (import.meta.env.DEV) {
+    // Local browser / phone on Wi-Fi: no Telegram signature → DEV user 1001
     headers["X-Dev-Telegram-Id"] = "1001";
   }
 
@@ -72,6 +77,16 @@ export const api = {
     request("/api/readings", {
       method: "POST",
       body: JSON.stringify({ month, values }),
+    }),
+  saveBaseline: (
+    month: string,
+    values: Record<string, number>,
+    markPaid = true,
+    paidAt?: string,
+  ) =>
+    request("/api/baseline", {
+      method: "POST",
+      body: JSON.stringify({ month, values, markPaid, paidAt }),
     }),
   saveCalculation: (month: string, values: Record<string, number>) =>
     request("/api/calculations", {

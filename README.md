@@ -1,4 +1,4 @@
-# SMART UTILITY
+# Smart_Utility
 
 Telegram Bot + Mini App для ежемесячного учёта коммунальных платежей по **трём квартирам**.
 
@@ -16,7 +16,7 @@ Telegram Bot + Mini App для ежемесячного учёта коммун�
 ## Mini App
 
 ```powershell
-cd c:\projects\utility-bot\miniapp
+cd c:\projects\Smart_Utility\miniapp
 npm install
 npm run dev
 ```
@@ -36,7 +36,7 @@ npm run build
 ## API
 
 ```powershell
-cd c:\projects\utility-bot\api
+cd c:\projects\Smart_Utility\api
 python -m venv venv
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
 .\venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
@@ -62,7 +62,7 @@ REMINDER_MINUTE=0
 ```
 
 ```powershell
-cd c:\projects\utility-bot\bot
+cd c:\projects\Smart_Utility\bot
 python -m venv venv
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
 .\venv\Scripts\python.exe bot.py
@@ -89,7 +89,7 @@ python -m venv venv
 Проверка логики без Telegram:
 
 ```powershell
-cd c:\projects\utility-bot\bot
+cd c:\projects\Smart_Utility\bot
 .\venv\Scripts\python.exe -m pytest test_reminders.py
 ```
 

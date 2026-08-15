@@ -34,8 +34,17 @@ export function CalculationScreen() {
         <Card>
           <p className="h3">Пока нечего считать</p>
           <p className="small" style={{ marginTop: 6 }}>
-            Сначала передайте показания по счётчикам или добавьте услуги с фиксированной суммой.
+            {Object.keys(currentReadings).length > 0
+              ? "Сейчас сохранены только начальные показания (база). Расход появится в следующем месяце, когда введёте новые текущие значения."
+              : "Сначала передайте показания по счётчикам или добавьте услуги с фиксированной суммой."}
           </p>
+          {Object.keys(currentReadings).length > 0 ? (
+            <div style={{ marginTop: 12 }}>
+              <Button variant="secondary" onClick={() => setTab("home")}>
+                На главную
+              </Button>
+            </div>
+          ) : null}
         </Card>
       ) : (
         drafts.map((draft) => (

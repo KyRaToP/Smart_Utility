@@ -25,7 +25,7 @@ def get_store() -> Store:
         _store = Store(DB_PATH)
     return _store
 
-app = FastAPI(title="SMART UTILITY API")
+app = FastAPI(title="Smart_Utility API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -91,6 +91,13 @@ class NotificationsPayload(BaseModel):
     paymentDaysBefore: int | None = None
     reportEnabled: bool | None = None
     reportDay: int | None = None
+
+
+class BaselinePayload(BaseModel):
+    month: str
+    values: dict[str, float]
+    markPaid: bool = True
+    paidAt: str | None = None
 
 
 def current_user(user: dict = Depends(resolve_user)) -> dict:
@@ -163,6 +170,25 @@ def save_readings(payload: ReadingsPayload, user: dict = Depends(current_user)) 
         get_store().save_readings(user["telegram_id"], payload.month, payload.values, new_id)
     except PermissionError as error:
         raise HTTPException(status_code=403, detail=str(error)) from error
+    return state_for(user)
+
+
+@app.post("/api/baseline")
+def save_baseline(payload: BaselinePayload, user: dict = Depends(current_user)) -> dict:
+    """Save meter readings for an already-paid month (baseline for next month)."""
+    if not payload.values:
+        raise HTTPException(status_code=400, detail="Need at least one meter reading")
+    try:
+        get_store().save_baseline(
+            user["telegram_id"],
+            payload.month,
+            payload.values,
+            payload.markPaid,
+            payload.paidAt,
+            new_id,
+        )
+    except (PermissionError, ValueError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     return state_for(user)
 
 

@@ -13,7 +13,7 @@ import { formatMonthTitle, formatNumber } from "../lib/format";
 import { useApp } from "../state/AppContext";
 
 export function ReadingsScreen() {
-  const { data, currentMonth, saveReadings, push } = useApp();
+  const { data, currentMonth, saveReadings, saveBaseline, push, setTab } = useApp();
   const apartment = data.apartments.find((item) => item.id === data.activeApartmentId);
   const services = apartment
     ? apartmentServices(data, apartment.id).filter((item) => item.hasMeter)
@@ -32,6 +32,7 @@ export function ReadingsScreen() {
   }, [meters, data, currentMonth]);
 
   const [values, setValues] = useState<Record<string, string>>(initialValues);
+  const [baselineSaved, setBaselineSaved] = useState(false);
 
   if (!apartment) {
     return null;
@@ -52,15 +53,41 @@ export function ReadingsScreen() {
     );
   }
 
+  const needsBaseline = meters.every(
+    (meter) => lastReadingBefore(data, meter.id, currentMonth) === null,
+  );
+
   const numericValues: Record<string, number> = {};
-  let canCalculate = true;
+  let canSubmit = true;
   for (const meter of meters) {
     const parsed = Number(values[meter.id]?.replace(",", "."));
     if (!Number.isFinite(parsed) || values[meter.id]?.trim() === "") {
-      canCalculate = false;
+      canSubmit = false;
     } else {
       numericValues[meter.id] = parsed;
     }
+  }
+
+  if (baselineSaved) {
+    return (
+      <div className="stack screen-enter">
+        <h1 className="h1">База сохранена</h1>
+        <Card size="hero">
+          <p className="caption">{formatMonthTitle(currentMonth)}</p>
+          <p className="h3" style={{ marginTop: 8 }}>
+            Показания записаны как уже оплаченные
+          </p>
+          <p className="small" style={{ marginTop: 10 }}>
+            В следующем месяце введёте новые текущие значения — приложение посчитает расход:
+            новые − эти.
+          </p>
+        </Card>
+        <Button onClick={() => setTab("home")}>На главную</Button>
+        <Button variant="secondary" onClick={() => push({ name: "baseline" })}>
+          Выбрать другой месяц
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -72,6 +99,21 @@ export function ReadingsScreen() {
           {formatMonthTitle(currentMonth).split(" ")[0].toLowerCase()}
         </p>
       </div>
+
+      {needsBaseline ? (
+        <Card>
+          <p className="h3">Нет предыдущих показаний</p>
+          <p className="small" style={{ marginTop: 6 }}>
+            Если месяц уже оплачен вне приложения — сохраните конечные показания как базу.
+            Или откройте форму с выбором месяца (например, только август).
+          </p>
+          <div style={{ marginTop: 12 }}>
+            <Button variant="secondary" onClick={() => push({ name: "baseline" })}>
+              Выбрать месяц вручную
+            </Button>
+          </div>
+        </Card>
+      ) : null}
 
       {meters.map((meter) => {
         const service = services.find((item) => item.id === meter.serviceId);
@@ -88,10 +130,12 @@ export function ReadingsScreen() {
 
         return (
           <Card key={meter.id}>
-            <p className="h3">{meter.zone === "single" ? service.name : `${service.name} · ${meter.name}`}</p>
+            <p className="h3">
+              {meter.zone === "single" ? service.name : `${service.name} · ${meter.name}`}
+            </p>
             <p className="small" style={{ marginTop: 4 }}>
               {previous === null
-                ? "Первый раз: введите начальное показание"
+                ? "Первый раз: конечное показание оплаченного месяца"
                 : `Предыдущие: ${formatNumber(previous, 2)} ${service.unit}`}
             </p>
             <div className="reading-input" style={{ marginTop: 12 }}>
@@ -100,7 +144,7 @@ export function ReadingsScreen() {
                 <input
                   inputMode="decimal"
                   value={values[meter.id] ?? ""}
-                  placeholder={previous === null ? "Начальное значение" : ""}
+                  placeholder={previous === null ? "Как на квитанции" : ""}
                   onChange={(event) =>
                     setValues((current) => ({
                       ...current,
@@ -124,13 +168,18 @@ export function ReadingsScreen() {
       })}
 
       <Button
-        disabled={!canCalculate}
+        disabled={!canSubmit}
         onClick={async () => {
+          if (needsBaseline) {
+            await saveBaseline(numericValues, currentMonth, true);
+            setBaselineSaved(true);
+            return;
+          }
           await saveReadings(numericValues, currentMonth);
           push({ name: "calculation" });
         }}
       >
-        Перейти к расчёту
+        {needsBaseline ? "Сохранить как уже оплаченную базу" : "Перейти к расчёту"}
       </Button>
     </div>
   );

@@ -376,6 +376,32 @@ class Store:
                 )
             connection.commit()
 
+    def save_baseline(
+        self,
+        telegram_id: int,
+        month: str,
+        values: dict[str, float],
+        mark_paid: bool,
+        paid_at: str | None,
+        new_id,
+    ) -> None:
+        """Store end-of-month readings used as baseline for the next month."""
+        if not values:
+            raise ValueError("Need at least one meter reading")
+        self.save_readings(telegram_id, month, values, new_id)
+        if not mark_paid:
+            return
+        state = self.load_state(telegram_id)
+        apartment_id = state["activeApartmentId"]
+        if not apartment_id:
+            raise ValueError("No active apartment")
+        self.mark_paid(
+            telegram_id,
+            apartment_id,
+            month,
+            paid_at or f"{month}-28",
+        )
+
     def save_calculation(
         self,
         telegram_id: int,

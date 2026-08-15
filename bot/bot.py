@@ -1,5 +1,5 @@
 """
-SMART UTILITY Telegram bot.
+Smart_Utility Telegram bot.
 
 Opens Mini App, answers /start, sends daily reminders from SQLite settings.
 """
@@ -47,7 +47,7 @@ async def start(message: Message) -> None:
         return
 
     text = (
-        "SMART UTILITY считает коммуналку по трём квартирам.\n\n"
+        "Smart_Utility считает коммуналку по трём квартирам.\n\n"
         "Данные принадлежат только вам: названия квартир, тарифы и "
         "показания вы вводите сами.\n\n"
         "Как пользоваться:\n"

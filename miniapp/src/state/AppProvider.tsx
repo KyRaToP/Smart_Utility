@@ -81,7 +81,7 @@ export function AppProvider({ children }: Props) {
       .catch((error: Error) => {
         if (!cancelled) {
           setApiError(
-            "Не удалось связаться с API. Запустите сервер: python -m uvicorn app.main:app --app-dir api --port 8000",
+            "API недоступен. Нужны: API на :8000 и DEV_AUTH=1 (если BOT_TOKEN уже задан).",
           );
           setReady(true);
           console.error(error);
@@ -182,6 +182,53 @@ export function AppProvider({ children }: Props) {
             });
           }
           return { ...current, readings: nextReadings };
+        });
+      },
+      saveBaseline: async (
+        values: Record<string, number>,
+        month: string,
+        markPaidFlag = true,
+      ) => {
+        if (mode === "empty") {
+          await applyRemote(() => api.saveBaseline(month, values, markPaidFlag));
+          return;
+        }
+        setData((current) => {
+          const apartmentId = current.activeApartmentId;
+          const nextReadings = current.readings.filter((item) => {
+            const keepOtherMonth = item.month !== month;
+            const keepOtherMeter = values[item.meterId] === undefined;
+            return keepOtherMonth || keepOtherMeter;
+          });
+          for (const [meterId, value] of Object.entries(values)) {
+            const hasHistory = current.readings.some(
+              (item) => item.meterId === meterId && item.month < month,
+            );
+            nextReadings.push({
+              id: createId("reading"),
+              meterId,
+              month,
+              value,
+              isInitial: !hasHistory,
+            });
+          }
+          let payments = current.payments;
+          if (markPaidFlag && apartmentId) {
+            payments = [
+              ...current.payments.filter(
+                (item) => !(item.apartmentId === apartmentId && item.month === month),
+              ),
+              {
+                id: createId("pay"),
+                apartmentId,
+                month,
+                amount: 0,
+                paidAt: `${month}-28`,
+                status: "paid" as const,
+              },
+            ];
+          }
+          return { ...current, readings: nextReadings, payments };
         });
       },
       saveCalculation: async (

@@ -1,24 +1,34 @@
 :root {
-  --bg: #f6f7f9;
+  /* Apitex-inspired palette: deep navy + peach gradient + warm light */
+  --bg: #f3ebe3;
+  --bg-soft: #faf6f1;
   --surface: #ffffff;
-  --primary: #5b5ce2;
-  --primary-dark: #4647c7;
-  --primary-soft: #eef0fb;
-  --text: #181a20;
-  --text-secondary: #747783;
-  --border: #e8e9ee;
-  --success: #35b779;
-  --success-soft: #eaf7f1;
-  --warning: #f4b740;
-  --warning-soft: #fdf6e4;
-  --danger: #ef6262;
+  --ink: #0b0d17;
+  --ink-soft: #1a1d2b;
+  --primary: #0b0d17;
+  --primary-dark: #000000;
+  --primary-soft: #ece8e3;
+  --accent-start: #fff5e1;
+  --accent-end: #ffd1a9;
+  --accent-mid: #ffe4c4;
+  --text: #0b0d17;
+  --text-secondary: #8a8794;
+  --text-on-dark: #ffffff;
+  --text-on-dark-muted: rgba(255, 255, 255, 0.62);
+  --border: #ebe4dc;
+  --success: #2f9e6f;
+  --success-soft: #e8f6ef;
+  --warning: #e0a045;
+  --warning-soft: #fdf3e3;
+  --danger: #e25b5b;
   --danger-soft: #fdeeee;
-  --info: #4e9fe6;
-  --info-soft: #eaf3fb;
+  --info: #4a7fd4;
+  --info-soft: #ebf2fb;
 
   --radius-sm: 16px;
-  --radius-md: 20px;
-  --radius-lg: 24px;
+  --radius-md: 22px;
+  --radius-lg: 28px;
+  --radius-pill: 999px;
 
   --space-8: 8px;
   --space-12: 12px;
@@ -26,12 +36,17 @@
   --space-20: 20px;
   --space-24: 24px;
 
-  --nav-height: 76px;
+  --nav-height: 72px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --page-pad-x: 16px;
 
-  --font: "Inter", sans-serif;
-  --shadow-hero: 0 10px 30px rgba(24, 26, 32, 0.04);
+  --font: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  --shadow-hero: 0 18px 40px rgba(11, 13, 23, 0.1);
+  --shadow-card: 0 8px 24px rgba(11, 13, 23, 0.05);
+  --gradient-page: linear-gradient(180deg, #f7efe7 0%, #f3ebe3 42%, #efe6dc 100%);
+  --gradient-card: linear-gradient(145deg, var(--accent-start) 0%, var(--accent-mid) 48%, var(--accent-end) 100%);
+  --gradient-ink: linear-gradient(180deg, var(--ink) 0%, var(--ink-soft) 100%);
 }
 
 * {
@@ -40,10 +55,19 @@
   padding: 0;
 }
 
+html {
+  height: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html,
 body,
 #root {
   min-height: 100%;
+  min-height: 100dvh;
+  max-width: 100vw;
 }
 
 body {
@@ -51,8 +75,12 @@ body {
   font-size: 15px;
   line-height: 22px;
   color: var(--text);
-  background: var(--bg);
+  background: var(--gradient-page);
+  background-attachment: scroll;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button,
@@ -60,6 +88,8 @@ input,
 select,
 textarea {
   font-family: inherit;
+  font-size: 16px; /* prevents iOS auto-zoom on focus */
+  touch-action: manipulation;
 }
 
 button {
@@ -68,4 +98,10 @@ button {
 
 a {
   color: inherit;
+}
+
+img,
+svg {
+  max-width: 100%;
+  display: block;
 }

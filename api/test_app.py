@@ -102,3 +102,64 @@ def test_fixed_service_calculation(tmp_path: Path) -> None:
     assert payload["charges"][0]["amount"] == 650
     assert payload["payments"][0]["status"] == "pending"
     assert payload["payments"][0]["amount"] == 650
+
+
+def test_baseline_readings_for_next_month(tmp_path: Path) -> None:
+    client = client_for(tmp_path)
+    headers = {"X-Dev-Telegram-Id": "1001"}
+    client.post(
+        "/api/onboarding",
+        json={
+            "apartments": [
+                {"name": "Одна", "rooms": "", "areaM2": ""},
+                {"name": "Две", "rooms": "", "areaM2": ""},
+                {"name": "Три", "rooms": "", "areaM2": ""},
+            ]
+        },
+        headers=headers,
+    )
+    client.post(
+        "/api/services",
+        json={
+            "name": "Холодная вода",
+            "category": "Вода",
+            "unit": "м³",
+            "tariff": "40",
+            "hasMeter": True,
+            "calcType": "metered",
+        },
+        headers=headers,
+    )
+    state = client.get("/api/state", headers=headers).json()
+    meter_id = state["meters"][0]["id"]
+
+    baseline = client.post(
+        "/api/baseline",
+        json={
+            "month": "2026-08",
+            "values": {meter_id: 1010},
+            "markPaid": True,
+            "paidAt": "2026-08-20",
+        },
+        headers=headers,
+    )
+    assert baseline.status_code == 200
+    body = baseline.json()
+    assert any(
+        item["meterId"] == meter_id and item["month"] == "2026-08" and item["value"] == 1010
+        for item in body["readings"]
+    )
+    assert any(
+        item["month"] == "2026-08" and item["status"] == "paid" for item in body["payments"]
+    )
+
+    september = client.post(
+        "/api/calculations",
+        json={"month": "2026-09", "values": {meter_id: 1050}},
+        headers=headers,
+    )
+    assert september.status_code == 200
+    charges = september.json()["charges"]
+    assert len(charges) == 1
+    assert charges[0]["consumption"] == 40
+    assert charges[0]["amount"] == 1600

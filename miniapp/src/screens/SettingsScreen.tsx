@@ -45,6 +45,11 @@ export function SettingsScreen() {
           onClick={() => push({ name: "add-service" })}
         />
         <SettingsLink
+          title="Уже оплаченный месяц"
+          subtitle="База показаний для следующего расчёта"
+          onClick={() => push({ name: "baseline" })}
+        />
+        <SettingsLink
           title="Уведомления"
           subtitle="Показания, оплата, отчёт"
           onClick={() => push({ name: "notifications" })}
