@@ -26,6 +26,28 @@ Telegram Bot + Mini App для ежемесячного учёта коммун�
 
 В Telegram целиком (кнопка открывает Mini App) — нужен HTTPS, см. ниже.
 
+## Deploy: GitHub Pages + Railway
+
+Схема без вашего ПК:
+
+| Часть | Куда |
+|---|---|
+| Mini App | GitHub Pages (`WEBAPP_URL`) |
+| API + Bot | один сервис Railway (общая SQLite) |
+
+Подробные шаги — в чате с ассистентом или ниже кратко.
+
+### Railway
+- `Dockerfile` в корне репозитория
+- Start: `bash scripts/start_railway.sh`
+- Volume (желательно): mount `/data`
+- Env: `BOT_TOKEN`, `WEBAPP_URL`, `ALLOWED_TELEGRAM_IDS`, `DEV_AUTH=0`, `DATABASE_PATH=/data/smart_utility.db`
+
+### GitHub Pages
+- Workflow: `.github/workflows/deploy-pages.yml`
+- Repo variable `VITE_API_URL` = публичный HTTPS URL Railway API
+- Settings → Pages → Source: GitHub Actions
+
 ## Mini App
 
 ```powershell
