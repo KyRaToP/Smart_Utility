@@ -25,10 +25,28 @@ def get_store() -> Store:
         _store = Store(DB_PATH)
     return _store
 
+def cors_origins() -> list[str]:
+    """Browser origins allowed to call the API (not curl/Postman)."""
+    origins: list[str] = []
+    webapp = os.getenv("WEBAPP_URL", "").strip().rstrip("/")
+    if webapp:
+        origins.append(webapp)
+    # Local Vite defaults for DEV.
+    for local in ("http://localhost:5173", "http://127.0.0.1:5173"):
+        if local not in origins:
+            origins.append(local)
+    extra = os.getenv("CORS_ORIGINS", "")
+    for item in extra.split(","):
+        cleaned = item.strip().rstrip("/")
+        if cleaned and cleaned not in origins:
+            origins.append(cleaned)
+    return origins
+
+
 app = FastAPI(title="Smart_Utility API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )

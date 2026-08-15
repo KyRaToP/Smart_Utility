@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import os
+import time
 from pathlib import Path
+from urllib.parse import urlencode
 
 os.environ["DEV_AUTH"] = "1"
 os.environ["ALLOWED_TELEGRAM_IDS"] = ""
@@ -9,6 +14,7 @@ os.environ["ALLOWED_TELEGRAM_IDS"] = ""
 from fastapi.testclient import TestClient
 
 from app import main
+from app.auth import AuthError, validate_init_data
 from app.calc import compute_consumption, compute_metered_amount
 from app.db import Store
 
@@ -16,6 +22,23 @@ from app.db import Store
 def client_for(tmp_path: Path) -> TestClient:
     main._store = Store(tmp_path / "test.db")
     return TestClient(main.app)
+
+
+def _signed_init_data(token: str, telegram_id: int, auth_date: int | None = None) -> str:
+    """Build Telegram-like initData with a valid HMAC hash for tests."""
+    user = json.dumps({"id": telegram_id, "first_name": "Test"}, separators=(",", ":"))
+    fields = {
+        "auth_date": str(auth_date if auth_date is not None else int(time.time())),
+        "user": user,
+    }
+    data_check_string = "\n".join(f"{key}={value}" for key, value in sorted(fields.items()))
+    secret_key = hmac.new(b"WebAppData", token.encode("utf-8"), hashlib.sha256).digest()
+    fields["hash"] = hmac.new(
+        secret_key,
+        data_check_string.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return urlencode(fields)
 
 
 def test_consumption_formula() -> None:
@@ -163,3 +186,65 @@ def test_baseline_readings_for_next_month(tmp_path: Path) -> None:
     assert len(charges) == 1
     assert charges[0]["consumption"] == 40
     assert charges[0]["amount"] == 1600
+
+
+def test_init_data_rejects_expired_auth_date() -> None:
+    token = "test-bot-token"
+    expired = int(time.time()) - 90_000
+    init_data = _signed_init_data(token, telegram_id=42, auth_date=expired)
+    try:
+        validate_init_data(init_data, token)
+        raise AssertionError("expected AuthError for expired initData")
+    except AuthError as error:
+        assert "expired" in str(error)
+
+
+def test_init_data_accepts_fresh_auth_date() -> None:
+    token = "test-bot-token"
+    init_data = _signed_init_data(token, telegram_id=42)
+    user = validate_init_data(init_data, token)
+    assert user["id"] == 42
+
+
+def test_telegram_path_requires_allowlist(tmp_path: Path, monkeypatch) -> None:
+    token = "test-bot-token"
+    monkeypatch.setenv("DEV_AUTH", "0")
+    monkeypatch.setenv("BOT_TOKEN", token)
+    monkeypatch.setenv("ALLOWED_TELEGRAM_IDS", "")
+    client = client_for(tmp_path)
+    init_data = _signed_init_data(token, telegram_id=42)
+    response = client.get(
+        "/api/state",
+        headers={"X-Telegram-Init-Data": init_data},
+    )
+    assert response.status_code == 503
+    assert "ALLOWED_TELEGRAM_IDS" in response.json()["detail"]
+
+
+def test_telegram_path_allows_listed_user(tmp_path: Path, monkeypatch) -> None:
+    token = "test-bot-token"
+    monkeypatch.setenv("DEV_AUTH", "0")
+    monkeypatch.setenv("BOT_TOKEN", token)
+    monkeypatch.setenv("ALLOWED_TELEGRAM_IDS", "42")
+    client = client_for(tmp_path)
+    init_data = _signed_init_data(token, telegram_id=42)
+    response = client.get(
+        "/api/state",
+        headers={"X-Telegram-Init-Data": init_data},
+    )
+    assert response.status_code == 200
+    assert response.json()["displayName"] == "Test"
+
+
+def test_telegram_path_rejects_user_outside_allowlist(tmp_path: Path, monkeypatch) -> None:
+    token = "test-bot-token"
+    monkeypatch.setenv("DEV_AUTH", "0")
+    monkeypatch.setenv("BOT_TOKEN", token)
+    monkeypatch.setenv("ALLOWED_TELEGRAM_IDS", "42")
+    client = client_for(tmp_path)
+    init_data = _signed_init_data(token, telegram_id=99)
+    response = client.get(
+        "/api/state",
+        headers={"X-Telegram-Init-Data": init_data},
+    )
+    assert response.status_code == 403

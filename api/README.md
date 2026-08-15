@@ -10,6 +10,8 @@ cd c:\projects\Smart_Utility\api
 .\venv\Scripts\python.exe -m pytest test_app.py
 ```
 
-Пока `BOT_TOKEN` пуст, включён DEV_AUTH: Mini App в браузере ходит без Telegram initData.
+Локальный браузер: в корневом `.env` задайте `DEV_AUTH=1` — Mini App ходит с `X-Dev-Telegram-Id`.
+По умолчанию в коде `DEV_AUTH=0`.
 
-Когда токен задан, API проверяет подпись `initData` и allowlist `ALLOWED_TELEGRAM_IDS`.
+Telegram-путь: проверка подписи `initData`, свежесть `auth_date`, и **обязательный** непустой `ALLOWED_TELEGRAM_IDS` (пустой список = 503, не «открыто всем»).
+CORS ограничен `WEBAPP_URL` + localhost Vite (+ опционально `CORS_ORIGINS`).

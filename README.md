@@ -41,7 +41,8 @@ Telegram Bot + Mini App для ежемесячного учёта коммун�
 - `Dockerfile` в корне репозитория
 - Start: `bash scripts/start_railway.sh`
 - Volume (желательно): mount `/data`
-- Env: `BOT_TOKEN`, `WEBAPP_URL`, `ALLOWED_TELEGRAM_IDS`, `DEV_AUTH=0`, `DATABASE_PATH=/data/smart_utility.db`
+- Env: `BOT_TOKEN`, `WEBAPP_URL`, `ALLOWED_TELEGRAM_IDS` (**обязателен**, хотя бы один ID), `DEV_AUTH=0`, `DATABASE_PATH=/data/smart_utility.db`
+- Опционально: `CORS_ORIGINS` (доп. origins через запятую), `AUTH_DATE_MAX_AGE_SECONDS` (по умолчанию 86400)
 
 ### GitHub Pages
 - Workflow: `.github/workflows/deploy-pages.yml`
@@ -78,7 +79,8 @@ python -m venv venv
 .\venv\Scripts\python.exe -m pytest test_app.py
 ```
 
-Пока `BOT_TOKEN` пуст, API в DEV_AUTH принимает заголовок `X-Dev-Telegram-Id`.
+Пока `DEV_AUTH=1` (только локально), API принимает заголовок `X-Dev-Telegram-Id`.
+По умолчанию `DEV_AUTH=0`: нужен Telegram `initData`. Пустой `ALLOWED_TELEGRAM_IDS` на пути Telegram — отказ (503), не «открыто всем».
 
 База: `api/data/smart_utility.db` (не в git).
 
@@ -89,13 +91,15 @@ python -m venv venv
 ```text
 BOT_TOKEN=
 WEBAPP_URL=
-ALLOWED_TELEGRAM_IDS=
+ALLOWED_TELEGRAM_IDS=<ваш_telegram_id>
 DEV_AUTH=1
 BOT_TIMEZONE=Europe/Moscow
 REMINDER_HOUR=9
 REMINDER_MINUTE=0
 ```
 
+На **проде** (Railway): `DEV_AUTH=0` и тот же непустой `ALLOWED_TELEGRAM_IDS`.
+`WEBAPP_URL` также используется для CORS (браузерный доступ к API только с этого origin + localhost Vite).
 ```powershell
 cd c:\projects\Smart_Utility\bot
 python -m venv venv
@@ -131,7 +135,7 @@ cd c:\projects\Smart_Utility\bot
 ## Handoff (когда будете передавать человеку)
 
 1. Задеплоить Mini App (Vercel) и API (Render) на HTTPS.
-2. В `.env` / хостинге: `WEBAPP_URL`, `BOT_TOKEN`, `ALLOWED_TELEGRAM_IDS=<его_id>`.
+2. В `.env` / хостинге: `WEBAPP_URL`, `BOT_TOKEN`, `ALLOWED_TELEGRAM_IDS=<его_id>` (обязательно), `DEV_AUTH=0`.
 3. BotFather → Menu Button = `WEBAPP_URL`.
 4. Запустить бота (ПК или сервер).
 5. Он: `/start` → назвать 3 квартиры → услуги → показания.
@@ -157,8 +161,8 @@ Telegram Mini App открывается только по **HTTPS**. Локал
 2. Задеплоить **API** (например Render) → `https://….onrender.com`
 3. В Mini App задать URL API (`VITE_API_URL` на хостинге)
 4. В корневом `.env` (и на сервере бота):  
-   `BOT_TOKEN`, `WEBAPP_URL=<https миниаппа>`, `ALLOWED_TELEGRAM_IDS=<ваш telegram id>`  
-   Для теста у себя: `DEV_AUTH=0` на проде API (проверка initData)
+   `BOT_TOKEN`, `WEBAPP_URL=<https миниаппа>`, `ALLOWED_TELEGRAM_IDS=<ваш telegram id>` (обязательно)  
+   На проде API: `DEV_AUTH=0` (проверка initData + allowlist; пустой allowlist = отказ)
 5. BotFather → Menu Button = тот же `WEBAPP_URL`
 6. Запустить бота (`bot.py`), в Telegram: `/start` → «Открыть приложение»
 7. Пройти сценарий этапа 9 уже внутри Telegram

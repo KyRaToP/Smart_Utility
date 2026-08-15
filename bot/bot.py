@@ -14,7 +14,7 @@ from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
-from app.config import BOT_TOKEN, DATABASE_PATH, WEBAPP_URL, is_allowed
+from app.config import ALLOWED_IDS, BOT_TOKEN, DATABASE_PATH, WEBAPP_URL, is_allowed
 from app.db_reader import list_users
 from app.reminders import build_user_reminders
 from app.scheduler import app_keyboard, send_reminder, start_scheduler
@@ -161,6 +161,10 @@ async def setup_menu(bot: Bot) -> None:
 
 
 async def main() -> None:
+    if not ALLOWED_IDS:
+        logger.error(
+            "ALLOWED_TELEGRAM_IDS is empty — bot will reject all users until IDs are set"
+        )
     bot = Bot(token=BOT_TOKEN)
     dispatcher = Dispatcher()
     dispatcher.include_router(router)

@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import time
 from urllib.parse import parse_qsl
 
 from fastapi import Header, HTTPException, Request
@@ -11,6 +12,10 @@ from fastapi import Header, HTTPException, Request
 
 class AuthError(Exception):
     pass
+
+
+# Default max age for Telegram WebApp initData (24 hours).
+DEFAULT_AUTH_DATE_MAX_AGE_SECONDS = 86400
 
 
 def _allowed_ids() -> set[int]:
@@ -26,14 +31,23 @@ def bot_token() -> str:
     return os.getenv("BOT_TOKEN", "").strip()
 
 
+def auth_date_max_age_seconds() -> int:
+    raw = os.getenv("AUTH_DATE_MAX_AGE_SECONDS", str(DEFAULT_AUTH_DATE_MAX_AGE_SECONDS))
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        return DEFAULT_AUTH_DATE_MAX_AGE_SECONDS
+    return value if value > 0 else DEFAULT_AUTH_DATE_MAX_AGE_SECONDS
+
+
 def dev_auth_enabled() -> bool:
-    # Default ON for local browser testing. Set DEV_AUTH=0 for production handoff.
-    flag = os.getenv("DEV_AUTH", "1").strip().lower()
+    # Default OFF: production-safe. Set DEV_AUTH=1 only for local browser testing.
+    flag = os.getenv("DEV_AUTH", "0").strip().lower()
     if flag in {"1", "true", "yes"}:
         return True
     if flag in {"0", "false", "no"}:
         return False
-    return True
+    return False
 
 
 def validate_init_data(init_data: str, token: str) -> dict:
@@ -53,10 +67,29 @@ def validate_init_data(init_data: str, token: str) -> dict:
     if not hmac.compare_digest(calculated, received_hash):
         raise AuthError("initData signature is invalid")
 
+    _assert_auth_date(parsed)
+
     user_raw = parsed.get("user", "")
     if not user_raw:
         raise AuthError("initData has no user")
     return json.loads(user_raw)
+
+
+def _assert_auth_date(parsed: dict) -> None:
+    raw = parsed.get("auth_date", "")
+    if not raw:
+        raise AuthError("initData auth_date is missing")
+    try:
+        auth_date = int(raw)
+    except ValueError as error:
+        raise AuthError("initData auth_date is invalid") from error
+
+    now = int(time.time())
+    # Allow small clock skew between Telegram and the server.
+    if auth_date > now + 60:
+        raise AuthError("initData auth_date is in the future")
+    if now - auth_date > auth_date_max_age_seconds():
+        raise AuthError("initData has expired")
 
 
 def _is_local_client(request: Request) -> bool:
@@ -72,7 +105,7 @@ def resolve_user(
     token = bot_token()
     init_data = (x_telegram_init_data or "").strip()
 
-    # Local browser / Vite proxy on phone Wi-Fi: no Telegram signature.
+    # Local browser / Vite proxy: no Telegram signature.
     # DEV path skips allowlist; real Telegram users always send signed initData.
     allow_dev = dev_auth_enabled() or _is_local_client(request)
     if allow_dev and not init_data:
@@ -103,8 +136,12 @@ def resolve_user(
 
 
 def _assert_allowlist(telegram_id: int) -> None:
+    """Variant B: empty allowlist is not open access — reject until IDs are set."""
     allowed = _allowed_ids()
     if not allowed:
-        return
+        raise HTTPException(
+            status_code=503,
+            detail="ALLOWED_TELEGRAM_IDS is empty; set at least one Telegram ID",
+        )
     if telegram_id not in allowed:
         raise HTTPException(status_code=403, detail="This bot is private")

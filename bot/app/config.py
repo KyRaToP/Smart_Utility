@@ -25,6 +25,7 @@ ALLOWED_IDS = {
 
 
 def is_allowed(user_id: int) -> bool:
+    # Variant B: empty allowlist means nobody (not "everyone").
     if not ALLOWED_IDS:
-        return True
+        return False
     return user_id in ALLOWED_IDS
