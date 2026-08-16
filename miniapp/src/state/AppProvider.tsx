@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { api } from "../api";
+import { api, telegramInitDataPresent } from "../api";
 import { draftsToCharges, buildMonthCharges, monthTotal } from "../calc/month";
 import { createEmptyData, createMockData } from "../data/seed";
 import { createId, currentMonthKey } from "../lib/format";
@@ -80,9 +80,10 @@ export function AppProvider({ children }: Props) {
       })
       .catch((error: Error) => {
         if (!cancelled) {
-          setApiError(
-            "Не удалось связаться с сервером. Если вы в Telegram — проверьте, что открыто приложение с адреса Railway (не старая ссылка GitHub Pages), и что на сервере заданы BOT_TOKEN и ALLOWED_TELEGRAM_IDS.",
-          );
+          const hint = !import.meta.env.DEV && !telegramInitDataPresent()
+            ? "Нет подписи Telegram. Откройте приложение кнопкой внутри бота."
+            : error.message;
+          setApiError(hint);
           setReady(true);
           console.error(error);
         }
@@ -100,9 +101,11 @@ export function AppProvider({ children }: Props) {
       setApiError(null);
     } catch (error) {
       console.error(error);
-      setApiError(
-        "Не удалось сохранить данные. Откройте приложение из Telegram ещё раз. Если ошибка остаётся — напишите разработчику (доступ или сервер).",
-      );
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Не удалось сохранить данные.";
+      setApiError(message);
       throw error;
     }
   };

@@ -1,6 +1,6 @@
 import type { AppData, NotificationSettings } from "./types";
 
-/** Base URL for API. Empty = same origin (local Vite proxy). */
+/** Base URL for API. Empty = same origin (local Vite proxy or Railway static). */
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 function apiUrl(path: string): string {
@@ -9,6 +9,42 @@ function apiUrl(path: string): string {
 
 function hasSignedInitData(initData: string | undefined): boolean {
   return Boolean(initData && initData.includes("hash="));
+}
+
+export function telegramInitDataPresent(): boolean {
+  return hasSignedInitData(window.Telegram?.WebApp.initData);
+}
+
+function humanApiError(status: number, body: string): string {
+  let detail = body.trim();
+  try {
+    const parsed = JSON.parse(body) as { detail?: unknown };
+    if (typeof parsed.detail === "string") {
+      detail = parsed.detail;
+    }
+  } catch {
+    // keep raw body
+  }
+
+  if (status === 403 || /private/i.test(detail)) {
+    return "Доступ закрыт: вашего Telegram ID нет в ALLOWED_TELEGRAM_IDS на Railway.";
+  }
+  if (status === 503 && /ALLOWED_TELEGRAM_IDS/i.test(detail)) {
+    return "На Railway пустой ALLOWED_TELEGRAM_IDS. Добавьте свой числовой Telegram ID в Variables и перезапустите сервис.";
+  }
+  if (status === 503 && /BOT_TOKEN/i.test(detail)) {
+    return "На Railway пустой BOT_TOKEN — сервер не может проверить вход из Telegram.";
+  }
+  if (status === 401 && /expired/i.test(detail)) {
+    return "Сессия Telegram устарела. Закройте приложение и откройте его снова из бота.";
+  }
+  if (status === 401) {
+    return "Нет подписи Telegram. Откройте приложение кнопкой внутри бота (не из обычного браузера и не со старой ссылки Pages).";
+  }
+  if (!status) {
+    return "Нет связи с сервером. Проверьте, что в BotFather указан URL Railway и сервис Online.";
+  }
+  return detail || `Ошибка сервера (${status})`;
 }
 
 async function request(path: string, init?: RequestInit): Promise<AppData> {
@@ -25,10 +61,15 @@ async function request(path: string, init?: RequestInit): Promise<AppData> {
     headers["X-Dev-Telegram-Id"] = "1001";
   }
 
-  const response = await fetch(apiUrl(path), { ...init, headers });
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path), { ...init, headers });
+  } catch {
+    throw new Error(humanApiError(0, ""));
+  }
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(detail || `API error ${response.status}`);
+    throw new Error(humanApiError(response.status, detail));
   }
   return (await response.json()) as AppData;
 }

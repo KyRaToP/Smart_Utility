@@ -25,9 +25,11 @@ export function OnboardingScreen() {
     setLocalError(null);
     try {
       await completeOnboarding(rows);
-    } catch {
+    } catch (error) {
       setLocalError(
-        "Не удалось сохранить. Откройте приложение снова из Telegram. Для проверки вёрстки в браузере — режим «demo-данные».",
+        error instanceof Error
+          ? error.message
+          : "Не удалось сохранить. Откройте приложение снова из бота.",
       );
     } finally {
       setSaving(false);
