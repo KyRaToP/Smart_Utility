@@ -6,14 +6,33 @@ import { useApp } from "../state/AppContext";
 const EMPTY_ROW = { name: "", rooms: "", areaM2: "" };
 
 export function OnboardingScreen() {
-  const { completeOnboarding } = useApp();
+  const { completeOnboarding, apiError } = useApp();
   const [rows, setRows] = useState([
     { ...EMPTY_ROW },
     { ...EMPTY_ROW },
     { ...EMPTY_ROW },
   ]);
+  const [saving, setSaving] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const namesReady = rows.every((row) => row.name.trim().length > 0);
+
+  const onContinue = async () => {
+    if (!namesReady || saving) {
+      return;
+    }
+    setSaving(true);
+    setLocalError(null);
+    try {
+      await completeOnboarding(rows);
+    } catch {
+      setLocalError(
+        "Не удалось сохранить. Откройте приложение снова из Telegram. Для проверки вёрстки в браузере — режим «demo-данные».",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="app-content screen-enter stack">
@@ -77,13 +96,14 @@ export function OnboardingScreen() {
         </div>
       ))}
 
-      <Button
-        disabled={!namesReady}
-        onClick={() => {
-          void completeOnboarding(rows);
-        }}
-      >
-        Продолжить
+      {localError || apiError ? (
+        <p className="small" style={{ color: "var(--danger, #b42318)" }} role="alert">
+          {localError ?? apiError}
+        </p>
+      ) : null}
+
+      <Button disabled={!namesReady || saving} onClick={() => void onContinue()}>
+        {saving ? "Сохраняем…" : "Продолжить"}
       </Button>
     </div>
   );

@@ -7,6 +7,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .auth import resolve_user
@@ -16,6 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
 
 DB_PATH = Path(os.getenv("DATABASE_PATH", PROJECT_ROOT / "api" / "data" / "smart_utility.db"))
+STATIC_DIR = Path(os.getenv("STATIC_DIR", PROJECT_ROOT / "static"))
 _store: Store | None = None
 
 
@@ -24,6 +27,7 @@ def get_store() -> Store:
     if _store is None:
         _store = Store(DB_PATH)
     return _store
+
 
 def cors_origins() -> list[str]:
     """Browser origins allowed to call the API (not curl/Postman)."""
@@ -47,6 +51,7 @@ app = FastAPI(title="Smart_Utility API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins(),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -233,3 +238,23 @@ def notifications(payload: NotificationsPayload, user: dict = Depends(current_us
     patch = payload.model_dump(exclude_none=True)
     get_store().update_notifications(user["telegram_id"], patch)
     return state_for(user)
+
+
+def _mount_miniapp() -> None:
+    """Serve built Mini App from STATIC_DIR (Railway image). API stays under /api."""
+    if not STATIC_DIR.is_dir():
+        return
+    index = STATIC_DIR / "index.html"
+    if not index.is_file():
+        return
+
+    assets_dir = STATIC_DIR / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="miniapp-assets")
+
+    @app.get("/")
+    def miniapp_index() -> FileResponse:
+        return FileResponse(index)
+
+
+_mount_miniapp()

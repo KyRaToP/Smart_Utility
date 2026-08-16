@@ -81,7 +81,7 @@ export function AppProvider({ children }: Props) {
       .catch((error: Error) => {
         if (!cancelled) {
           setApiError(
-            "API недоступен. Нужны: API на :8000 и DEV_AUTH=1 (если BOT_TOKEN уже задан).",
+            "Не удалось связаться с сервером. Если вы в Telegram — проверьте, что открыто приложение с адреса Railway (не старая ссылка GitHub Pages), и что на сервере заданы BOT_TOKEN и ALLOWED_TELEGRAM_IDS.",
           );
           setReady(true);
           console.error(error);
@@ -94,9 +94,17 @@ export function AppProvider({ children }: Props) {
   }, [mode]);
 
   const applyRemote = async (action: () => Promise<AppData>) => {
-    const next = await action();
-    setData(next);
-    setApiError(null);
+    try {
+      const next = await action();
+      setData(next);
+      setApiError(null);
+    } catch (error) {
+      console.error(error);
+      setApiError(
+        "Не удалось сохранить данные. Откройте приложение из Telegram ещё раз. Если ошибка остаётся — напишите разработчику (доступ или сервер).",
+      );
+      throw error;
+    }
   };
 
   const value = useMemo(

@@ -26,29 +26,30 @@ Telegram Bot + Mini App для ежемесячного учёта коммун�
 
 В Telegram целиком (кнопка открывает Mini App) — нужен HTTPS, см. ниже.
 
-## Deploy: GitHub Pages + Railway
+## Deploy: Railway (API + Bot + Mini App)
 
-Схема без вашего ПК:
+Один сервис на Railway отдаёт и API, и Mini App (удобно для Telegram).
 
 | Часть | Куда |
 |---|---|
-| Mini App | GitHub Pages (`WEBAPP_URL`) |
-| API + Bot | один сервис Railway (общая SQLite) |
+| API + Bot + Mini App | Railway (`Dockerfile`, общая SQLite) |
 
-Подробные шаги — в чате с ассистентом или ниже кратко.
+Публичный HTTPS URL Railway = и API, и экран приложения.
 
 ### Railway
-- `Dockerfile` в корне репозитория
+- `Dockerfile` в корне (собирает Mini App внутрь образа)
 - Start: `bash scripts/start_railway.sh`
-- Volume (желательно): mount `/data`
-- Env: `BOT_TOKEN`, `WEBAPP_URL`, `ALLOWED_TELEGRAM_IDS` (**обязателен**, хотя бы один ID), `DEV_AUTH=0`, `DATABASE_PATH=/data/smart_utility.db`
-- Опционально: `CORS_ORIGINS` (доп. origins через запятую), `AUTH_DATE_MAX_AGE_SECONDS` (по умолчанию 86400)
+- Volume: mount `/data`
+- Variables:
+  - `BOT_TOKEN` — токен BotFather
+  - `WEBAPP_URL` — **тот же** публичный HTTPS URL Railway (например `https://smartutility-production.up.railway.app`)
+  - `ALLOWED_TELEGRAM_IDS` — ваш или пользователя Telegram ID (**обязательно**)
+  - `DEV_AUTH=0`
+  - `DATABASE_PATH=/data/smart_utility.db`
+- BotFather → Menu Button / Web App URL = тот же `WEBAPP_URL` (без лишнего path, корень сайта)
 
-### GitHub Pages
-- Workflow: `.github/workflows/deploy-pages.yml`
-- Repo variable `VITE_API_URL` = публичный HTTPS URL Railway API
-- Settings → Pages → Source: GitHub Actions
-
+### GitHub Pages (опционально)
+Отдельный хостинг Mini App больше не обязателен. Если оставляете Pages — в repo variable `VITE_API_URL` укажите HTTPS URL Railway API и пересоберите workflow.
 ## Mini App
 
 ```powershell
