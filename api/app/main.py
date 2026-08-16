@@ -29,10 +29,23 @@ def get_store() -> Store:
     return _store
 
 
+def resolve_webapp_url() -> str:
+    """Mini App public URL. Prefer Railway domain over a stuck github.io WEBAPP_URL."""
+    raw = os.getenv("WEBAPP_URL", "").strip().rstrip("/")
+    railway = os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip().rstrip("/")
+    if railway and (not raw or "github.io" in raw.lower()):
+        return f"https://{railway}"
+    if raw:
+        return raw
+    if railway:
+        return f"https://{railway}"
+    return ""
+
+
 def cors_origins() -> list[str]:
     """Browser origins allowed to call the API (not curl/Postman)."""
     origins: list[str] = []
-    webapp = os.getenv("WEBAPP_URL", "").strip().rstrip("/")
+    webapp = resolve_webapp_url()
     if webapp:
         origins.append(webapp)
     # Local Vite defaults for DEV.

@@ -170,7 +170,7 @@ async def main() -> None:
     dispatcher.include_router(router)
     await setup_menu(bot)
     start_scheduler(bot)
-    logger.info("Bot started")
+    logger.info("Bot started (WEBAPP_URL=%s)", WEBAPP_URL or "(empty)")
     try:
         await dispatcher.start_polling(bot)
     finally:

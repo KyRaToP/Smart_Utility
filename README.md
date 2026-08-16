@@ -42,11 +42,12 @@ Telegram Bot + Mini App для ежемесячного учёта коммун�
 - Volume: mount `/data`
 - Variables:
   - `BOT_TOKEN` — токен BotFather
-  - `WEBAPP_URL` — **тот же** публичный HTTPS URL Railway (например `https://smartutility-production.up.railway.app`)
+  - `WEBAPP_URL` — лучше **удалить** или `https://${{RAILWAY_PUBLIC_DOMAIN}}`.
+    Старый `github.io` на Railway код **игнорирует** и берёт домен Railway.
   - `ALLOWED_TELEGRAM_IDS` — ваш или пользователя Telegram ID (**обязательно**)
   - `DEV_AUTH=0`
   - `DATABASE_PATH=/data/smart_utility.db`
-- BotFather → Menu Button / Web App URL = тот же `WEBAPP_URL` (без лишнего path, корень сайта)
+- BotFather → Menu Button = `https://<ваш-сервис>.up.railway.app` (после рестарта бот выставит сам)
 
 ### GitHub Pages (опционально)
 Отдельный хостинг Mini App больше не обязателен. Если оставляете Pages — в repo variable `VITE_API_URL` укажите HTTPS URL Railway API и пересоберите workflow.
