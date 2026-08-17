@@ -351,6 +351,82 @@ class Store:
                 )
             connection.commit()
 
+    def update_service(self, telegram_id: int, service_id: str, payload: dict, new_id) -> None:
+        with self.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT services.id
+                FROM services
+                JOIN apartments ON apartments.id = services.apartment_id
+                WHERE services.id = ? AND apartments.telegram_id = ?
+                """,
+                (service_id, telegram_id),
+            ).fetchone()
+            if row is None:
+                raise PermissionError("Service not found")
+
+            calc_type = payload["calcType"]
+            has_meter = bool(payload.get("hasMeter"))
+            connection.execute(
+                """
+                UPDATE services
+                SET name = ?, category = ?, calc_type = ?, unit = ?, tariff = ?, has_meter = ?
+                WHERE id = ?
+                """,
+                (
+                    payload["name"].strip(),
+                    (payload.get("category") or payload["name"]).strip(),
+                    calc_type,
+                    (payload.get("unit") or "₽").strip(),
+                    float(payload["tariff"]),
+                    1 if has_meter else 0,
+                    service_id,
+                ),
+            )
+            self._ensure_service_meters(
+                connection,
+                service_id,
+                payload["name"].strip(),
+                calc_type,
+                has_meter,
+                new_id,
+            )
+            connection.commit()
+
+    def _ensure_service_meters(
+        self,
+        connection: sqlite3.Connection,
+        service_id: str,
+        name: str,
+        calc_type: str,
+        has_meter: bool,
+        new_id,
+    ) -> None:
+        if not has_meter:
+            return
+        meters = connection.execute(
+            "SELECT zone FROM meters WHERE service_id = ?",
+            (service_id,),
+        ).fetchall()
+        zones = {item["zone"] for item in meters}
+        if calc_type == "two_zone":
+            if "day" not in zones:
+                connection.execute(
+                    "INSERT INTO meters (id, service_id, name, zone) VALUES (?, ?, ?, ?)",
+                    (new_id("meter"), service_id, "День", "day"),
+                )
+            if "night" not in zones:
+                connection.execute(
+                    "INSERT INTO meters (id, service_id, name, zone) VALUES (?, ?, ?, ?)",
+                    (new_id("meter"), service_id, "Ночь", "night"),
+                )
+            return
+        if not meters:
+            connection.execute(
+                "INSERT INTO meters (id, service_id, name, zone) VALUES (?, ?, ?, ?)",
+                (new_id("meter"), service_id, name, "single"),
+            )
+
     def save_readings(self, telegram_id: int, month: str, values: dict[str, float], new_id) -> None:
         self._assert_meters_owned(telegram_id, list(values.keys()))
         with self.connect() as connection:

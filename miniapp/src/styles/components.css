@@ -59,6 +59,21 @@
   box-shadow: none;
 }
 
+.card--button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.card--button:active {
+  transform: scale(0.99);
+}
+
 .card--hero {
   border: 0;
   border-radius: var(--radius-lg);
@@ -477,6 +492,23 @@
 
 .settings-item__text {
   flex: 1;
+}
+
+.service-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.service-card__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.service-card__chevron {
+  color: var(--text-secondary);
+  flex-shrink: 0;
 }
 
 .reading-input {

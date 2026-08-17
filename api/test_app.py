@@ -188,6 +188,67 @@ def test_baseline_readings_for_next_month(tmp_path: Path) -> None:
     assert charges[0]["amount"] == 1600
 
 
+def test_update_service(tmp_path: Path) -> None:
+    client = client_for(tmp_path)
+    headers = {"X-Dev-Telegram-Id": "1001"}
+    client.post(
+        "/api/onboarding",
+        json={
+            "apartments": [
+                {"name": "Одна", "rooms": "", "areaM2": ""},
+                {"name": "Две", "rooms": "", "areaM2": ""},
+                {"name": "Три", "rooms": "", "areaM2": ""},
+            ]
+        },
+        headers=headers,
+    )
+    client.post(
+        "/api/services",
+        json={
+            "name": "Холодная",
+            "category": "Вода",
+            "unit": "м³",
+            "tariff": "100",
+            "hasMeter": True,
+            "calcType": "metered",
+        },
+        headers=headers,
+    )
+    state = client.get("/api/state", headers=headers).json()
+    service_id = state["services"][0]["id"]
+
+    patched = client.patch(
+        f"/api/services/{service_id}",
+        json={
+            "name": "ХВС",
+            "category": "Вода",
+            "unit": "м³",
+            "tariff": "55.5",
+            "hasMeter": True,
+            "calcType": "metered",
+        },
+        headers=headers,
+    )
+    assert patched.status_code == 200
+    service = patched.json()["services"][0]
+    assert service["name"] == "ХВС"
+    assert service["tariff"] == 55.5
+
+    forbidden = client.patch(
+        f"/api/services/{service_id}",
+        json={
+            "name": "Чужая",
+            "category": "Вода",
+            "unit": "м³",
+            "tariff": "1",
+            "hasMeter": True,
+            "calcType": "metered",
+        },
+        headers={"X-Dev-Telegram-Id": "2002"},
+    )
+    assert forbidden.status_code == 403
+
+
 def test_init_data_rejects_expired_auth_date() -> None:
     token = "test-bot-token"
     expired = int(time.time()) - 90_000

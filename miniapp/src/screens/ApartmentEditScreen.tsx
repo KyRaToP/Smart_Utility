@@ -31,7 +31,7 @@ export function ApartmentEditScreen() {
             label="День передачи показаний"
             value={readingDueDay}
             inputMode="numeric"
-            hint="Напоминание бота будет к этой дате"
+            hint="Число месяца, например 25. На экране «Показания» дату можно выбрать календарём"
             onChange={setReadingDueDay}
           />
         </div>

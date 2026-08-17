@@ -200,6 +200,21 @@ def add_service(payload: ServicePayload, user: dict = Depends(current_user)) -> 
     return state_for(user)
 
 
+@app.patch("/api/services/{service_id}")
+def patch_service(
+    service_id: str,
+    payload: ServicePayload,
+    user: dict = Depends(current_user),
+) -> dict:
+    try:
+        get_store().update_service(user["telegram_id"], service_id, payload.model_dump(), new_id)
+    except PermissionError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return state_for(user)
+
+
 @app.post("/api/readings")
 def save_readings(payload: ReadingsPayload, user: dict = Depends(current_user)) -> dict:
     try:

@@ -13,6 +13,21 @@ const MONTHS = [
   "Декабрь",
 ];
 
+const MONTHS_GENITIVE = [
+  "января",
+  "февраля",
+  "марта",
+  "апреля",
+  "мая",
+  "июня",
+  "июля",
+  "августа",
+  "сентября",
+  "октября",
+  "ноября",
+  "декабря",
+];
+
 export function currentMonthKey(now = new Date()): string {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -58,6 +73,39 @@ export function formatNumber(value: number, digits = 1): string {
 
 export function createId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+export function lastDayOfMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+export function clampDay(year: number, month: number, day: number): number {
+  const last = lastDayOfMonth(year, month);
+  return Math.max(1, Math.min(day, last));
+}
+
+export function formatDueDate(day: number, monthKey: string): string {
+  const [yearText, monthText] = monthKey.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const safeDay = clampDay(year, month, day);
+  return `${safeDay} ${MONTHS_GENITIVE[month - 1]}`;
+}
+
+export function dueDateIso(monthKey: string, day: number): string {
+  const [yearText, monthText] = monthKey.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const safeDay = clampDay(year, month, day);
+  return `${yearText}-${monthText}-${String(safeDay).padStart(2, "0")}`;
+}
+
+export function dayFromIsoDate(iso: string): number | null {
+  const day = Number(iso.split("-")[2]);
+  if (!Number.isFinite(day) || day < 1 || day > 31) {
+    return null;
+  }
+  return day;
 }
 
 export function percentChange(current: number, previous: number): number | null {

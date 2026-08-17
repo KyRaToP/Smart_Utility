@@ -4,7 +4,7 @@ import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Field } from "../components/Field";
 import { useApp } from "../state/AppContext";
-import type { CalcType } from "../types";
+import type { CalcType, Service } from "../types";
 
 const TYPES: Array<{ id: CalcType; label: string }> = [
   { id: "metered", label: "По счётчику" },
@@ -56,14 +56,38 @@ function defaultUnit(category: Category, calcType: CalcType): string {
   return unitsFor(category, calcType)[0];
 }
 
+function asCategory(value: string): Category {
+  return (CATEGORIES as readonly string[]).includes(value)
+    ? (value as Category)
+    : "Другое";
+}
+
+function fieldsFromService(service: Service | undefined) {
+  const category = asCategory(service?.category ?? "Вода");
+  const calcType = service?.calcType ?? "metered";
+  return {
+    name: service?.name ?? "",
+    category,
+    calcType,
+    unit: service?.unit ?? defaultUnit(category, calcType),
+    tariff: service ? String(service.tariff) : "",
+    hasMeter: service?.hasMeter ?? true,
+  };
+}
+
 export function AddServiceScreen() {
-  const { addService, back } = useApp();
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState<Category>("Вода");
-  const [calcType, setCalcType] = useState<CalcType>("metered");
-  const [unit, setUnit] = useState(defaultUnit("Вода", "metered"));
-  const [tariff, setTariff] = useState("");
-  const [hasMeter, setHasMeter] = useState(true);
+  const { addService, updateService, back, data, stack } = useApp();
+  const route = stack[stack.length - 1];
+  const editingId = route?.serviceId;
+  const existing = data.services.find((item) => item.id === editingId);
+  const initial = fieldsFromService(existing);
+
+  const [name, setName] = useState(initial.name);
+  const [category, setCategory] = useState<Category>(initial.category);
+  const [calcType, setCalcType] = useState<CalcType>(initial.calcType);
+  const [unit, setUnit] = useState(initial.unit);
+  const [tariff, setTariff] = useState(initial.tariff);
+  const [hasMeter, setHasMeter] = useState(initial.hasMeter);
 
   const unitOptions = useMemo(() => unitsFor(category, calcType), [category, calcType]);
   const canSave = name.trim().length > 0 && Number(tariff.replace(",", ".")) >= 0 && tariff !== "";
@@ -94,9 +118,11 @@ export function AddServiceScreen() {
 
   return (
     <div className="app-content screen-enter stack">
-      <BackRow title="Новая услуга" onBack={back} />
+      <BackRow title={existing ? "Изменить услугу" : "Новая услуга"} onBack={back} />
       <p className="small">
-        Услуга сохранится только в активной квартире. Тариф вводите свой, из квитанции.
+        {existing
+          ? "Изменения применятся только к этой квартире. Тариф берите из квитанции."
+          : "Услуга сохранится только в активной квартире. Тариф вводите свой, из квитанции."}
       </p>
 
       <Card>
@@ -172,14 +198,19 @@ export function AddServiceScreen() {
       <Button
         disabled={!canSave}
         onClick={async () => {
-          await addService({
+          const payload = {
             name,
             category,
             unit: unitOptions.includes(unit) ? unit : unitOptions[0],
             tariff: tariff.replace(",", "."),
             hasMeter,
             calcType,
-          });
+          };
+          if (existing) {
+            await updateService(existing.id, payload);
+          } else {
+            await addService(payload);
+          }
           back();
         }}
       >

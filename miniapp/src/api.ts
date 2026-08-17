@@ -1,4 +1,4 @@
-import type { AppData, NotificationSettings } from "./types";
+import type { AppData, NotificationSettings, ServiceInput } from "./types";
 
 /** Base URL for API. Empty = same origin (local Vite proxy or Railway static). */
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
@@ -102,16 +102,14 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
-  addService: (input: {
-    name: string;
-    category: string;
-    unit: string;
-    tariff: string;
-    hasMeter: boolean;
-    calcType: string;
-  }) =>
+  addService: (input: ServiceInput) =>
     request("/api/services", {
       method: "POST",
+      body: JSON.stringify(input),
+    }),
+  updateService: (id: string, input: ServiceInput) =>
+    request(`/api/services/${id}`, {
+      method: "PATCH",
       body: JSON.stringify(input),
     }),
   saveReadings: (month: string, values: Record<string, number>) =>

@@ -1,5 +1,12 @@
 import { createContext, useContext } from "react";
-import type { AppData, DataMode, NotificationSettings, Route, TabId } from "../types";
+import type {
+  AppData,
+  DataMode,
+  NotificationSettings,
+  Route,
+  ServiceInput,
+  TabId,
+} from "../types";
 
 export interface AppContextValue {
   mode: DataMode;
@@ -26,14 +33,8 @@ export interface AppContextValue {
   ) => Promise<void>;
   saveCalculation: (month?: string, values?: Record<string, number>) => Promise<void>;
   markPaid: (apartmentId: string, month: string) => Promise<void>;
-  addService: (input: {
-    name: string;
-    category: string;
-    unit: string;
-    tariff: string;
-    hasMeter: boolean;
-    calcType: "metered" | "two_zone" | "fixed" | "by_area";
-  }) => Promise<void>;
+  addService: (input: ServiceInput) => Promise<void>;
+  updateService: (id: string, input: ServiceInput) => Promise<void>;
   updateApartment: (
     id: string,
     patch: { name: string; rooms: string; areaM2: string; readingDueDay: string },

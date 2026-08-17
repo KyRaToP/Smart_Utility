@@ -7,13 +7,15 @@ import {
 import { computeConsumption } from "../calc/calculate";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
+import { DueDatePicker } from "../components/DueDatePicker";
 import { EmptyState } from "../components/EmptyState";
 import { GaugeIcon } from "../components/Icons";
 import { formatMonthTitle, formatNumber } from "../lib/format";
 import { useApp } from "../state/AppContext";
 
 export function ReadingsScreen() {
-  const { data, currentMonth, saveReadings, saveBaseline, push, setTab } = useApp();
+  const { data, currentMonth, saveReadings, saveBaseline, push, setTab, updateApartment } =
+    useApp();
   const apartment = data.apartments.find((item) => item.id === data.activeApartmentId);
   const services = apartment
     ? apartmentServices(data, apartment.id).filter((item) => item.hasMeter)
@@ -94,11 +96,23 @@ export function ReadingsScreen() {
     <div className="stack screen-enter">
       <div>
         <h1 className="h1">Показания</h1>
-        <p className="small">
-          {apartment.name} · передайте до {apartment.readingDueDay}{" "}
-          {formatMonthTitle(currentMonth).split(" ")[0].toLowerCase()}
-        </p>
+        <p className="small">{apartment.name}</p>
       </div>
+
+      <Card size="sm">
+        <DueDatePicker
+          monthKey={currentMonth}
+          day={apartment.readingDueDay}
+          onChange={(day) => {
+            void updateApartment(apartment.id, {
+              name: apartment.name,
+              rooms: apartment.rooms ? String(apartment.rooms) : "",
+              areaM2: apartment.areaM2 ? String(apartment.areaM2) : "",
+              readingDueDay: String(day),
+            });
+          }}
+        />
+      </Card>
 
       {needsBaseline ? (
         <Card>

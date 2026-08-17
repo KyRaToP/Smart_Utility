@@ -20,6 +20,16 @@ export interface Route {
   name: ScreenName;
   month?: string;
   apartmentId?: string;
+  serviceId?: string;
+}
+
+export interface ServiceInput {
+  name: string;
+  category: string;
+  unit: string;
+  tariff: string;
+  hasMeter: boolean;
+  calcType: CalcType;
 }
 
 export interface Apartment {

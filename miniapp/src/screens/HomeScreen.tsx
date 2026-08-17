@@ -18,6 +18,7 @@ import {
   FlameIcon,
 } from "../components/Icons";
 import {
+  formatDueDate,
   formatMonthTitle,
   formatRub,
   percentChange,
@@ -168,7 +169,9 @@ export function HomeScreen() {
       <Card>
         <div className="cta-card">
           <div>
-            <p className="caption">Показания до {apartment.readingDueDay} числа</p>
+            <p className="caption">
+              Показания до {formatDueDate(apartment.readingDueDay, currentMonth)}
+            </p>
             <p className="h3" style={{ marginTop: 4 }}>
               Передать показания
             </p>

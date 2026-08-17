@@ -5,10 +5,11 @@ import { createEmptyData, createMockData } from "../data/seed";
 import { createId, currentMonthKey } from "../lib/format";
 import type {
   AppData,
-  CalcType,
   DataMode,
+  Meter,
   NotificationSettings,
   Route,
+  ServiceInput,
   TabId,
 } from "../types";
 import { AppContext } from "./AppContext";
@@ -300,14 +301,7 @@ export function AppProvider({ children }: Props) {
           ),
         }));
       },
-      addService: async (input: {
-        name: string;
-        category: string;
-        unit: string;
-        tariff: string;
-        hasMeter: boolean;
-        calcType: CalcType;
-      }) => {
+      addService: async (input: ServiceInput) => {
         if (mode === "empty") {
           await applyRemote(() => api.addService(input));
           return;
@@ -318,33 +312,9 @@ export function AppProvider({ children }: Props) {
             return current;
           }
           const serviceId = createId("svc");
-          const nextMeters = [...current.meters];
-          if (input.hasMeter && input.calcType === "two_zone") {
-            nextMeters.push(
-              {
-                id: createId("meter"),
-                serviceId,
-                name: "День",
-                zone: "day",
-              },
-              {
-                id: createId("meter"),
-                serviceId,
-                name: "Ночь",
-                zone: "night",
-              },
-            );
-          } else if (input.hasMeter) {
-            nextMeters.push({
-              id: createId("meter"),
-              serviceId,
-              name: input.name,
-              zone: "single",
-            });
-          }
           return {
             ...current,
-            meters: nextMeters,
+            meters: ensureServiceMeters(current.meters, serviceId, input),
             services: [
               ...current.services,
               {
@@ -359,6 +329,35 @@ export function AppProvider({ children }: Props) {
                 isActive: true,
               },
             ],
+          };
+        });
+      },
+      updateService: async (id: string, input: ServiceInput) => {
+        if (mode === "empty") {
+          await applyRemote(() => api.updateService(id, input));
+          return;
+        }
+        setData((current) => {
+          const existing = current.services.find((item) => item.id === id);
+          if (!existing) {
+            return current;
+          }
+          return {
+            ...current,
+            meters: ensureServiceMeters(current.meters, id, input),
+            services: current.services.map((item) =>
+              item.id === id
+                ? {
+                    ...item,
+                    name: input.name.trim(),
+                    category: input.category.trim() || input.name.trim(),
+                    calcType: input.calcType,
+                    unit: input.unit.trim() || "₽",
+                    tariff: Number(input.tariff) || 0,
+                    hasMeter: input.hasMeter,
+                  }
+                : item,
+            ),
           };
         });
       },
@@ -400,4 +399,48 @@ export function AppProvider({ children }: Props) {
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+function ensureServiceMeters(
+  meters: Meter[],
+  serviceId: string,
+  input: ServiceInput,
+): Meter[] {
+  if (!input.hasMeter) {
+    return meters;
+  }
+
+  const existing = meters.filter((item) => item.serviceId === serviceId);
+  const next = [...meters];
+
+  if (input.calcType === "two_zone") {
+    if (!existing.some((item) => item.zone === "day")) {
+      next.push({
+        id: createId("meter"),
+        serviceId,
+        name: "День",
+        zone: "day",
+      });
+    }
+    if (!existing.some((item) => item.zone === "night")) {
+      next.push({
+        id: createId("meter"),
+        serviceId,
+        name: "Ночь",
+        zone: "night",
+      });
+    }
+    return next;
+  }
+
+  if (existing.length === 0) {
+    next.push({
+      id: createId("meter"),
+      serviceId,
+      name: input.name.trim(),
+      zone: "single",
+    });
+  }
+
+  return next;
 }
