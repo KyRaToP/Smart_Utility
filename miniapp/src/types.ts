@@ -28,6 +28,7 @@ export interface ServiceInput {
   category: string;
   unit: string;
   tariff: string;
+  nightTariff?: string;
   hasMeter: boolean;
   calcType: CalcType;
 }

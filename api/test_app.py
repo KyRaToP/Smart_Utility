@@ -249,6 +249,40 @@ def test_update_service(tmp_path: Path) -> None:
     assert forbidden.status_code == 403
 
 
+def test_two_zone_service_tariffs(tmp_path: Path) -> None:
+    client = client_for(tmp_path)
+    headers = {"X-Dev-Telegram-Id": "1001"}
+    client.post(
+        "/api/onboarding",
+        json={
+            "apartments": [
+                {"name": "Одна", "rooms": "", "areaM2": ""},
+                {"name": "Две", "rooms": "", "areaM2": ""},
+                {"name": "Три", "rooms": "", "areaM2": ""},
+            ]
+        },
+        headers=headers,
+    )
+    created = client.post(
+        "/api/services",
+        json={
+            "name": "Электричество",
+            "category": "Электроэнергия",
+            "unit": "кВт⋅ч",
+            "tariff": "6.8",
+            "nightTariff": "3.2",
+            "hasMeter": True,
+            "calcType": "two_zone",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 200
+    service = created.json()["services"][0]
+    assert service["tariff"] == 6.8
+    assert service["nightTariff"] == 3.2
+    assert len([item for item in created.json()["meters"] if item["serviceId"] == service["id"]]) == 2
+
+
 def test_delete_user_data_keeps_other_users(tmp_path: Path) -> None:
     client = client_for(tmp_path)
     headers_a = {"X-Dev-Telegram-Id": "1001"}

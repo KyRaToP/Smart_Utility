@@ -53,5 +53,9 @@ function serviceSubtitle(service: Service): string {
   if (service.calcType === "fixed" || service.unit === "₽") {
     return `${service.category} · ${service.tariff} ₽ / месяц${meterLabel}`;
   }
+  if (service.calcType === "two_zone") {
+    const night = service.nightTariff ?? 0;
+    return `${service.category} · день ${service.tariff} ₽ / ${service.unit} · ночь ${night} ₽ / ${service.unit}${meterLabel}`;
+  }
   return `${service.category} · ${service.tariff} ₽ / ${service.unit}${meterLabel}`;
 }

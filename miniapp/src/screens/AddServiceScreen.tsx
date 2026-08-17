@@ -71,6 +71,10 @@ function fieldsFromService(service: Service | undefined) {
     calcType,
     unit: service?.unit ?? defaultUnit(category, calcType),
     tariff: service ? String(service.tariff) : "",
+    nightTariff:
+      service?.nightTariff !== undefined && service.nightTariff !== null
+        ? String(service.nightTariff)
+        : "",
     hasMeter: service?.hasMeter ?? true,
   };
 }
@@ -87,10 +91,15 @@ export function AddServiceScreen() {
   const [calcType, setCalcType] = useState<CalcType>(initial.calcType);
   const [unit, setUnit] = useState(initial.unit);
   const [tariff, setTariff] = useState(initial.tariff);
+  const [nightTariff, setNightTariff] = useState(initial.nightTariff);
   const [hasMeter, setHasMeter] = useState(initial.hasMeter);
 
   const unitOptions = useMemo(() => unitsFor(category, calcType), [category, calcType]);
-  const canSave = name.trim().length > 0 && Number(tariff.replace(",", ".")) >= 0 && tariff !== "";
+  const isTwoZone = calcType === "two_zone";
+  const tariffValid = tariff !== "" && Number(tariff.replace(",", ".")) >= 0;
+  const nightTariffValid =
+    !isTwoZone || (nightTariff !== "" && Number(nightTariff.replace(",", ".")) >= 0);
+  const canSave = name.trim().length > 0 && tariffValid && nightTariffValid;
 
   const applyCalcType = (next: CalcType) => {
     setCalcType(next);
@@ -176,12 +185,26 @@ export function AddServiceScreen() {
           </label>
 
           <Field
-            label="Тариф, ₽"
+            label={isTwoZone ? "Тариф день, ₽" : "Тариф, ₽"}
             value={tariff}
             inputMode="decimal"
-            hint="Сумма за единицу или фиксированный платёж в месяц"
+            hint={
+              isTwoZone
+                ? "Стоимость одного кВт⋅ч по дневному счётчику"
+                : "Сумма за единицу или фиксированный платёж в месяц"
+            }
             onChange={setTariff}
           />
+
+          {isTwoZone ? (
+            <Field
+              label="Тариф ночь, ₽"
+              value={nightTariff}
+              inputMode="decimal"
+              hint="Стоимость одного кВт⋅ч по ночному счётчику"
+              onChange={setNightTariff}
+            />
+          ) : null}
 
           <div className="row">
             <span>Использовать счётчик</span>
@@ -203,6 +226,7 @@ export function AddServiceScreen() {
             category,
             unit: unitOptions.includes(unit) ? unit : unitOptions[0],
             tariff: tariff.replace(",", "."),
+            nightTariff: isTwoZone ? nightTariff.replace(",", ".") : undefined,
             hasMeter,
             calcType,
           };

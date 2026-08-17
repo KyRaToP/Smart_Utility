@@ -325,6 +325,10 @@ export function AppProvider({ children }: Props) {
                 calcType: input.calcType,
                 unit: input.unit.trim() || "₽",
                 tariff: Number(input.tariff) || 0,
+                nightTariff:
+                  input.calcType === "two_zone" && input.nightTariff
+                    ? Number(input.nightTariff) || 0
+                    : undefined,
                 hasMeter: input.hasMeter,
                 isActive: true,
               },
@@ -354,6 +358,10 @@ export function AppProvider({ children }: Props) {
                     calcType: input.calcType,
                     unit: input.unit.trim() || "₽",
                     tariff: Number(input.tariff) || 0,
+                    nightTariff:
+                      input.calcType === "two_zone" && input.nightTariff
+                        ? Number(input.nightTariff) || 0
+                        : undefined,
                     hasMeter: input.hasMeter,
                   }
                 : item,

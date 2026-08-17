@@ -116,6 +116,7 @@ class ServicePayload(BaseModel):
     category: str = ""
     unit: str = "₽"
     tariff: str
+    nightTariff: str | None = None
     hasMeter: bool
     calcType: str
 

@@ -322,7 +322,7 @@ class Store:
                 INSERT INTO services (
                     id, apartment_id, name, category, calc_type, unit, tariff,
                     night_tariff, has_meter, is_active
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, 1)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                 """,
                 (
                     service_id,
@@ -332,6 +332,7 @@ class Store:
                     calc_type,
                     (payload.get("unit") or "₽").strip(),
                     float(payload["tariff"]),
+                    night_tariff_value(payload),
                     1 if has_meter else 0,
                 ),
             )
@@ -370,7 +371,8 @@ class Store:
             connection.execute(
                 """
                 UPDATE services
-                SET name = ?, category = ?, calc_type = ?, unit = ?, tariff = ?, has_meter = ?
+                SET name = ?, category = ?, calc_type = ?, unit = ?, tariff = ?,
+                    night_tariff = ?, has_meter = ?
                 WHERE id = ?
                 """,
                 (
@@ -379,6 +381,7 @@ class Store:
                     calc_type,
                     (payload.get("unit") or "₽").strip(),
                     float(payload["tariff"]),
+                    night_tariff_value(payload),
                     1 if has_meter else 0,
                     service_id,
                 ),
@@ -687,6 +690,15 @@ def to_float(value) -> float | None:
     if value is None or value == "":
         return None
     return float(value)
+
+
+def night_tariff_value(payload: dict) -> float | None:
+    if payload.get("calcType") != "two_zone":
+        return None
+    raw = payload.get("nightTariff")
+    if raw is None or raw == "":
+        return None
+    return float(raw)
 
 
 def empty_state(display_name: str) -> dict:
