@@ -1,25 +1,14 @@
 from __future__ import annotations
 
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
-
-from .config import WEBAPP_URL
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 CLEAR_BUTTON = "Очистить базу"
 
 
 def composer_keyboard() -> ReplyKeyboardMarkup:
-    """Persistent bar above the input: Mini App + wipe, side by side."""
-    row: list[KeyboardButton] = []
-    if WEBAPP_URL:
-        row.append(
-            KeyboardButton(
-                text="Приложение",
-                web_app=WebAppInfo(url=WEBAPP_URL),
-            )
-        )
-    row.append(KeyboardButton(text=CLEAR_BUTTON))
+    """Persistent bar above the input with wipe action only."""
     return ReplyKeyboardMarkup(
-        keyboard=[row],
+        keyboard=[[KeyboardButton(text=CLEAR_BUTTON)]],
         resize_keyboard=True,
         is_persistent=True,
         input_field_placeholder="Напишите да или нет, если бот спросил",
