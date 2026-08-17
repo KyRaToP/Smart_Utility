@@ -249,6 +249,42 @@ def test_update_service(tmp_path: Path) -> None:
     assert forbidden.status_code == 403
 
 
+def test_delete_user_data_keeps_other_users(tmp_path: Path) -> None:
+    client = client_for(tmp_path)
+    headers_a = {"X-Dev-Telegram-Id": "1001"}
+    headers_b = {"X-Dev-Telegram-Id": "2002"}
+    payload = {
+        "apartments": [
+            {"name": "Одна", "rooms": "", "areaM2": ""},
+            {"name": "Две", "rooms": "", "areaM2": ""},
+            {"name": "Три", "rooms": "", "areaM2": ""},
+        ]
+    }
+    client.post("/api/onboarding", json=payload, headers=headers_a)
+    client.post("/api/onboarding", json=payload, headers=headers_b)
+    client.post(
+        "/api/services",
+        json={
+            "name": "Холодная",
+            "category": "Вода",
+            "unit": "м³",
+            "tariff": "100",
+            "hasMeter": True,
+            "calcType": "metered",
+        },
+        headers=headers_a,
+    )
+
+    main._store.delete_user_data(1001)
+    state_a = client.get("/api/state", headers=headers_a).json()
+    state_b = client.get("/api/state", headers=headers_b).json()
+    assert state_a["onboarded"] is False
+    assert state_a["apartments"] == []
+    assert state_a["services"] == []
+    assert state_b["onboarded"] is True
+    assert len(state_b["apartments"]) == 3
+
+
 def test_init_data_rejects_expired_auth_date() -> None:
     token = "test-bot-token"
     expired = int(time.time()) - 90_000

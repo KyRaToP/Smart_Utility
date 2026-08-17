@@ -594,6 +594,54 @@ class Store:
             )
             connection.commit()
 
+    def delete_user_data(self, telegram_id: int) -> None:
+        """Remove this Telegram user's apartments, meters, readings and profile."""
+        with self.connect() as connection:
+            apartments = [
+                row["id"]
+                for row in connection.execute(
+                    "SELECT id FROM apartments WHERE telegram_id = ?",
+                    (telegram_id,),
+                ).fetchall()
+            ]
+            services = [
+                row["id"]
+                for row in self._in_query(connection, "services", "apartment_id", apartments)
+            ]
+            meters = [
+                row["id"]
+                for row in self._in_query(connection, "meters", "service_id", services)
+            ]
+            if meters:
+                placeholders = ",".join("?" for _ in meters)
+                connection.execute(
+                    f"DELETE FROM readings WHERE meter_id IN ({placeholders})",
+                    meters,
+                )
+            if services:
+                placeholders = ",".join("?" for _ in services)
+                connection.execute(
+                    f"DELETE FROM meters WHERE service_id IN ({placeholders})",
+                    services,
+                )
+            if apartments:
+                placeholders = ",".join("?" for _ in apartments)
+                connection.execute(
+                    f"DELETE FROM charges WHERE apartment_id IN ({placeholders})",
+                    apartments,
+                )
+                connection.execute(
+                    f"DELETE FROM payments WHERE apartment_id IN ({placeholders})",
+                    apartments,
+                )
+                connection.execute(
+                    f"DELETE FROM services WHERE apartment_id IN ({placeholders})",
+                    apartments,
+                )
+            connection.execute("DELETE FROM apartments WHERE telegram_id = ?", (telegram_id,))
+            connection.execute("DELETE FROM users WHERE telegram_id = ?", (telegram_id,))
+            connection.commit()
+
     def _active_apartment(self, telegram_id: int) -> str:
         with self.connect() as connection:
             row = connection.execute(
