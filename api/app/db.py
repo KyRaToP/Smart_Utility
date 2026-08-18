@@ -502,6 +502,18 @@ class Store:
         current_readings.update({key: float(value) for key, value in values.items()})
         drafts = build_month_charges(state, apartment_id, month, current_readings)
         with self.connect() as connection:
+            existing_payment = connection.execute(
+                """
+                SELECT status, paid_at FROM payments
+                WHERE apartment_id = ? AND month = ?
+                """,
+                (apartment_id, month),
+            ).fetchone()
+            keep_paid = bool(
+                existing_payment and existing_payment["status"] == "paid"
+            )
+            paid_at = existing_payment["paid_at"] if keep_paid else None
+            pay_status = "paid" if keep_paid else "pending"
             connection.execute(
                 "DELETE FROM charges WHERE apartment_id = ? AND month = ?",
                 (apartment_id, month),
@@ -532,9 +544,16 @@ class Store:
             connection.execute(
                 """
                 INSERT INTO payments (id, apartment_id, month, amount, paid_at, status)
-                VALUES (?, ?, ?, ?, NULL, 'pending')
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (new_id("pay"), apartment_id, month, round_money(total)),
+                (
+                    new_id("pay"),
+                    apartment_id,
+                    month,
+                    round_money(total),
+                    paid_at,
+                    pay_status,
+                ),
             )
             connection.commit()
 
@@ -743,6 +762,8 @@ def build_month_charges(
 ) -> list[ChargeDraft]:
     apartment = next((item for item in state["apartments"] if item["id"] == apartment_id), None)
     drafts: list[ChargeDraft] = []
+    incomplete: list[str] = []
+    negative: list[str] = []
     services = [
         item
         for item in state["services"]
@@ -781,15 +802,20 @@ def build_month_charges(
             day_meter = next((item for item in meters if item["zone"] == "day"), None)
             night_meter = next((item for item in meters if item["zone"] == "night"), None)
             if day_meter is None or night_meter is None:
+                incomplete.append(service["name"])
                 continue
             day_previous = last_reading_before(state, day_meter["id"], month)
             night_previous = last_reading_before(state, night_meter["id"], month)
             day_current = current_readings.get(day_meter["id"])
             night_current = current_readings.get(night_meter["id"])
             if None in (day_previous, night_previous, day_current, night_current):
+                incomplete.append(service["name"])
                 continue
             day_use = compute_consumption(float(day_current), float(day_previous))
             night_use = compute_consumption(float(night_current), float(night_previous))
+            if day_use < 0 or night_use < 0:
+                negative.append(service["name"])
+                continue
             drafts.append(
                 ChargeDraft(
                     service_id=service["id"],
@@ -815,12 +841,17 @@ def build_month_charges(
 
         meter = meters[0] if meters else None
         if meter is None:
+            incomplete.append(service["name"])
             continue
         previous = last_reading_before(state, meter["id"], month)
         current = current_readings.get(meter["id"])
         if previous is None or current is None:
+            incomplete.append(service["name"])
             continue
         consumption = compute_consumption(float(current), float(previous))
+        if consumption < 0:
+            negative.append(service["name"])
+            continue
         drafts.append(
             ChargeDraft(
                 service_id=service["id"],
@@ -836,4 +867,19 @@ def build_month_charges(
                 ),
             )
         )
+    problems: list[str] = []
+    if incomplete:
+        problems.append(
+            "Нет предыдущих показаний для: "
+            + ", ".join(incomplete)
+            + ". Сохраните базу (уже оплаченный месяц) или введите прошлые показания."
+        )
+    if negative:
+        problems.append(
+            "Текущие показания меньше предыдущих у: "
+            + ", ".join(negative)
+            + ". Если счётчик заменили — сначала сохраните базу."
+        )
+    if problems:
+        raise ValueError(" ".join(problems))
     return drafts

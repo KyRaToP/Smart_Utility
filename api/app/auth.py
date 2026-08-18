@@ -40,8 +40,19 @@ def auth_date_max_age_seconds() -> int:
     return value if value > 0 else DEFAULT_AUTH_DATE_MAX_AGE_SECONDS
 
 
+def railway_detected() -> bool:
+    """True when running on Railway — DEV auth must never apply there."""
+    return bool(
+        os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip()
+        or os.getenv("RAILWAY_ENVIRONMENT", "").strip()
+    )
+
+
 def dev_auth_enabled() -> bool:
-    # Default OFF: production-safe. Set DEV_AUTH=1 only for local browser testing.
+    # Default OFF. DEV_AUTH=1 is for local browser testing only.
+    # Railway always disables the unsigned path even if someone sets DEV_AUTH=1.
+    if railway_detected():
+        return False
     flag = os.getenv("DEV_AUTH", "0").strip().lower()
     if flag in {"1", "true", "yes"}:
         return True
@@ -92,11 +103,6 @@ def _assert_auth_date(parsed: dict) -> None:
         raise AuthError("initData has expired")
 
 
-def _is_local_client(request: Request) -> bool:
-    host = (request.client.host if request.client else "") or ""
-    return host in {"127.0.0.1", "::1", "localhost"}
-
-
 def resolve_user(
     request: Request,
     x_telegram_init_data: str | None = Header(default=None),
@@ -106,10 +112,12 @@ def resolve_user(
     init_data = (x_telegram_init_data or "").strip()
 
     # Local browser / Vite proxy: no Telegram signature.
-    # DEV path skips allowlist; real Telegram users always send signed initData.
-    allow_dev = dev_auth_enabled() or _is_local_client(request)
-    if allow_dev and not init_data:
-        telegram_id = int(x_dev_telegram_id or os.getenv("DEV_TELEGRAM_ID", "1001"))
+    # Only when DEV_AUTH=1 and we are not on Railway. Loopback alone is not enough.
+    if dev_auth_enabled() and not init_data:
+        try:
+            telegram_id = int(x_dev_telegram_id or os.getenv("DEV_TELEGRAM_ID", "1001"))
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail="Invalid DEV telegram id") from error
         return {"telegram_id": telegram_id, "display_name": "Dev"}
 
     if init_data:

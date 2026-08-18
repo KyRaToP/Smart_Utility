@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { buildMonthCharges } from "../calc/month";
+import { buildMonthCharges, monthChargeBlockers } from "../calc/month";
 import { BackRow } from "../components/BackRow";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -21,6 +21,16 @@ export function CalculationScreen() {
   }
 
   const drafts = buildMonthCharges(data, apartment.id, currentMonth, currentReadings);
+  const blockers = monthChargeBlockers(
+    data,
+    apartment.id,
+    currentMonth,
+    currentReadings,
+  );
+  const cannotSave =
+    drafts.length === 0 ||
+    blockers.incomplete.length > 0 ||
+    blockers.negative.length > 0;
   const total = drafts.reduce((sum, item) => sum + item.amount, 0);
 
   return (
@@ -29,6 +39,25 @@ export function CalculationScreen() {
       <p className="small">
         {apartment.name} · {formatMonthTitle(currentMonth)}
       </p>
+
+      {blockers.incomplete.length > 0 ? (
+        <Card>
+          <p className="h3">Нельзя сохранить неполный расчёт</p>
+          <p className="small" style={{ marginTop: 6 }}>
+            Нет предыдущих показаний для: {blockers.incomplete.join(", ")}.
+            Сохраните базу (уже оплаченный месяц) или введите прошлые показания.
+          </p>
+        </Card>
+      ) : null}
+      {blockers.negative.length > 0 ? (
+        <Card>
+          <p className="h3">Показания меньше предыдущих</p>
+          <p className="small" style={{ marginTop: 6 }}>
+            {blockers.negative.join(", ")}. Если счётчик заменили — сначала
+            сохраните базу.
+          </p>
+        </Card>
+      ) : null}
 
       {drafts.length === 0 ? (
         <Card>
@@ -80,7 +109,7 @@ export function CalculationScreen() {
       </Card>
 
       <Button
-        disabled={drafts.length === 0}
+        disabled={cannotSave}
         onClick={async () => {
           await saveCalculation(currentMonth, currentReadings);
           setTab("home");

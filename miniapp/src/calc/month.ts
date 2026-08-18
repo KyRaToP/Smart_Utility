@@ -55,6 +55,64 @@ export function apartmentServices(data: AppData, apartmentId: string): Service[]
   );
 }
 
+export function monthChargeBlockers(
+  data: AppData,
+  apartmentId: string,
+  month: string,
+  currentReadings: Record<string, number>,
+): { incomplete: string[]; negative: string[] } {
+  const incomplete: string[] = [];
+  const negative: string[] = [];
+
+  for (const service of apartmentServices(data, apartmentId)) {
+    if (service.calcType === "fixed" || service.calcType === "by_area") {
+      continue;
+    }
+    const meters = data.meters.filter((item) => item.serviceId === service.id);
+    if (service.calcType === "two_zone") {
+      const dayMeter = meters.find((item) => item.zone === "day");
+      const nightMeter = meters.find((item) => item.zone === "night");
+      if (!dayMeter || !nightMeter) {
+        incomplete.push(service.name);
+        continue;
+      }
+      const dayPrevious = lastReadingBefore(data, dayMeter.id, month);
+      const nightPrevious = lastReadingBefore(data, nightMeter.id, month);
+      const dayCurrent = currentReadings[dayMeter.id];
+      const nightCurrent = currentReadings[nightMeter.id];
+      if (
+        dayPrevious === null ||
+        nightPrevious === null ||
+        dayCurrent === undefined ||
+        nightCurrent === undefined
+      ) {
+        incomplete.push(service.name);
+        continue;
+      }
+      if (dayCurrent < dayPrevious || nightCurrent < nightPrevious) {
+        negative.push(service.name);
+      }
+      continue;
+    }
+    const meter = meters[0];
+    if (!meter) {
+      incomplete.push(service.name);
+      continue;
+    }
+    const previous = lastReadingBefore(data, meter.id, month);
+    const current = currentReadings[meter.id];
+    if (previous === null || current === undefined) {
+      incomplete.push(service.name);
+      continue;
+    }
+    if (current < previous) {
+      negative.push(service.name);
+    }
+  }
+
+  return { incomplete, negative };
+}
+
 export function buildMonthCharges(
   data: AppData,
   apartmentId: string,

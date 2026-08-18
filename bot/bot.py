@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import date
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
@@ -18,7 +17,7 @@ from app.config import ALLOWED_IDS, BOT_TOKEN, DATABASE_PATH, WEBAPP_URL, is_all
 from app.db_reader import list_users
 from app.db_wipe import wipe_user_data
 from app.keyboards import CLEAR_BUTTON, composer_keyboard
-from app.reminders import build_user_reminders
+from app.reminders import build_user_reminders, today_in_bot_timezone
 from app.scheduler import send_reminder, start_scheduler
 
 logging.basicConfig(
@@ -166,7 +165,7 @@ async def remind_test(message: Message) -> None:
         )
         return
 
-    reminders = build_user_reminders(profile, date.today())
+    reminders = build_user_reminders(profile, today_in_bot_timezone())
     if not reminders:
         await message.answer(
             "На сегодня по вашим настройкам напоминаний нет.\n"

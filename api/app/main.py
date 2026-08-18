@@ -148,7 +148,9 @@ def state_for(user: dict) -> dict:
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True}
+    from .auth import dev_auth_enabled
+
+    return {"ok": True, "devAuth": dev_auth_enabled()}
 
 
 @app.get("/api/state")

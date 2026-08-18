@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from calendar import monthrange
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
-from .config import DATABASE_PATH
+from .config import ALLOWED_IDS, DATABASE_PATH, TIMEZONE
 from .db_reader import (
     ApartmentRow,
     UserRow,
@@ -58,10 +59,20 @@ def format_money(amount: float) -> str:
     return f"{amount:,.2f}".replace(",", " ").replace(".", ",") + " ₽"
 
 
+def today_in_bot_timezone() -> date:
+    try:
+        zone = ZoneInfo(TIMEZONE)
+    except Exception:
+        zone = ZoneInfo("Europe/Moscow")
+    return datetime.now(zone).date()
+
+
 def build_reminders_for_today(today: date | None = None) -> list[ReminderMessage]:
-    today = today or date.today()
+    today = today or today_in_bot_timezone()
     messages: list[ReminderMessage] = []
     for user in list_users(DATABASE_PATH):
+        if user.telegram_id not in ALLOWED_IDS:
+            continue
         messages.extend(build_user_reminders(user, today))
     return messages
 

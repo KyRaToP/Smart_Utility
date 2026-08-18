@@ -188,6 +188,85 @@ def test_baseline_readings_for_next_month(tmp_path: Path) -> None:
     assert charges[0]["amount"] == 1600
 
 
+def test_metered_without_previous_readings_is_rejected(tmp_path: Path) -> None:
+    client = client_for(tmp_path)
+    headers = {"X-Dev-Telegram-Id": "1001"}
+    client.post(
+        "/api/onboarding",
+        json={
+            "apartments": [
+                {"name": "Одна", "rooms": "", "areaM2": ""},
+                {"name": "Две", "rooms": "", "areaM2": ""},
+                {"name": "Три", "rooms": "", "areaM2": ""},
+            ]
+        },
+        headers=headers,
+    )
+    client.post(
+        "/api/services",
+        json={
+            "name": "Холодная вода",
+            "category": "Вода",
+            "unit": "м³",
+            "tariff": "40",
+            "hasMeter": True,
+            "calcType": "metered",
+        },
+        headers=headers,
+    )
+    state = client.get("/api/state", headers=headers).json()
+    meter_id = state["meters"][0]["id"]
+    result = client.post(
+        "/api/calculations",
+        json={"month": "2026-09", "values": {meter_id: 1050}},
+        headers=headers,
+    )
+    assert result.status_code == 400
+    assert "предыдущих" in result.json()["detail"].lower()
+
+
+def test_negative_consumption_is_rejected(tmp_path: Path) -> None:
+    client = client_for(tmp_path)
+    headers = {"X-Dev-Telegram-Id": "1001"}
+    client.post(
+        "/api/onboarding",
+        json={
+            "apartments": [
+                {"name": "Одна", "rooms": "", "areaM2": ""},
+                {"name": "Две", "rooms": "", "areaM2": ""},
+                {"name": "Три", "rooms": "", "areaM2": ""},
+            ]
+        },
+        headers=headers,
+    )
+    client.post(
+        "/api/services",
+        json={
+            "name": "Холодная вода",
+            "category": "Вода",
+            "unit": "м³",
+            "tariff": "40",
+            "hasMeter": True,
+            "calcType": "metered",
+        },
+        headers=headers,
+    )
+    state = client.get("/api/state", headers=headers).json()
+    meter_id = state["meters"][0]["id"]
+    client.post(
+        "/api/baseline",
+        json={"month": "2026-08", "values": {meter_id: 1010}, "markPaid": True},
+        headers=headers,
+    )
+    result = client.post(
+        "/api/calculations",
+        json={"month": "2026-09", "values": {meter_id: 900}},
+        headers=headers,
+    )
+    assert result.status_code == 400
+    assert "меньше" in result.json()["detail"].lower()
+
+
 def test_update_service(tmp_path: Path) -> None:
     client = client_for(tmp_path)
     headers = {"X-Dev-Telegram-Id": "1001"}
@@ -379,3 +458,71 @@ def test_telegram_path_rejects_user_outside_allowlist(tmp_path: Path, monkeypatc
         headers={"X-Telegram-Init-Data": init_data},
     )
     assert response.status_code == 403
+
+
+def test_dev_auth_ignored_on_railway(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("DEV_AUTH", "1")
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
+    client = client_for(tmp_path)
+    response = client.get("/api/state", headers={"X-Dev-Telegram-Id": "1001"})
+    assert response.status_code == 401
+    health = client.get("/api/health")
+    assert health.status_code == 200
+    assert health.json()["devAuth"] is False
+
+
+def test_recalc_keeps_paid_status(tmp_path: Path) -> None:
+    client = client_for(tmp_path)
+    headers = {"X-Dev-Telegram-Id": "1001"}
+    client.post(
+        "/api/onboarding",
+        json={
+            "apartments": [
+                {"name": "Одна", "rooms": "", "areaM2": ""},
+                {"name": "Две", "rooms": "", "areaM2": ""},
+                {"name": "Три", "rooms": "", "areaM2": ""},
+            ]
+        },
+        headers=headers,
+    )
+    client.post(
+        "/api/services",
+        json={
+            "name": "Интернет",
+            "category": "Интернет",
+            "unit": "₽",
+            "tariff": "650",
+            "hasMeter": False,
+            "calcType": "fixed",
+        },
+        headers=headers,
+    )
+    first = client.post(
+        "/api/calculations",
+        json={"month": "2026-08", "values": {}},
+        headers=headers,
+    )
+    assert first.status_code == 200
+    apartment_id = first.json()["activeApartmentId"]
+    paid = client.post(
+        "/api/payments/paid",
+        json={"apartmentId": apartment_id, "month": "2026-08", "paidAt": "2026-08-20"},
+        headers=headers,
+    )
+    assert paid.status_code == 200
+    assert any(
+        item["month"] == "2026-08" and item["status"] == "paid"
+        for item in paid.json()["payments"]
+    )
+    second = client.post(
+        "/api/calculations",
+        json={"month": "2026-08", "values": {}},
+        headers=headers,
+    )
+    assert second.status_code == 200
+    payment = next(
+        item for item in second.json()["payments"] if item["month"] == "2026-08"
+    )
+    assert payment["status"] == "paid"
+    assert payment["paidAt"] == "2026-08-20"
+
